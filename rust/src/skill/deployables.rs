@@ -45,6 +45,7 @@ impl Deployable {
                             color: Color::new(0.0, 0.94, 1.0, 1.0),
                             radius: 3.0,
                             explosion_radius: None,
+                            spawns_black_hole: false,
                             pierce: 0,
                             bounces: 0,
                             life: 1.5,

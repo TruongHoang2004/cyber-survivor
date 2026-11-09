@@ -7,44 +7,63 @@ pub fn draw_hud(
     score: u64,
     combo: u32,
     enemies_left: u32,
-    active_boss: Option<(&str, f32, f32)>,
+    allies_count: usize,
+    active_boss: Option<(&str, f32, f32, usize)>,
 ) {
-    // Top Left: Wave, Score, Enemies
-    draw_rectangle(20.0, 20.0, 140.0, 50.0, Color::new(0.05, 0.07, 0.12, 0.85));
-    draw_rectangle_lines(20.0, 20.0, 140.0, 50.0, 1.0, Color::new(0.0, 0.94, 1.0, 0.3));
-    draw_text("WAVE", 30.0, 40.0, 16.0, Color::new(0.6, 0.7, 0.8, 1.0));
-    draw_text(&format!("{}", wave), 30.0, 62.0, 22.0, Color::new(0.0, 0.94, 1.0, 1.0));
+    // Top Left: Wave, Score, Enemies, Allies
+    draw_rectangle(20.0, 20.0, 115.0, 50.0, Color::new(0.05, 0.07, 0.12, 0.85));
+    draw_rectangle_lines(20.0, 20.0, 115.0, 50.0, 1.0, Color::new(0.0, 0.94, 1.0, 0.3));
+    draw_text("WAVE", 30.0, 38.0, 15.0, Color::new(0.6, 0.7, 0.8, 1.0));
+    draw_text(&format!("{}", wave), 30.0, 61.0, 22.0, Color::new(0.0, 0.94, 1.0, 1.0));
 
-    draw_rectangle(170.0, 20.0, 220.0, 50.0, Color::new(0.05, 0.07, 0.12, 0.85));
-    draw_rectangle_lines(170.0, 20.0, 220.0, 50.0, 1.0, Color::new(0.0, 0.94, 1.0, 0.3));
-    draw_text("SCORE", 180.0, 40.0, 16.0, Color::new(0.6, 0.7, 0.8, 1.0));
-    draw_text(&format!("{}", score), 180.0, 62.0, 22.0, Color::new(1.0, 0.84, 0.0, 1.0));
-    draw_text(&format!("x{}", combo), 330.0, 62.0, 18.0, Color::new(0.0, 1.0, 0.4, 1.0));
+    draw_rectangle(145.0, 20.0, 210.0, 50.0, Color::new(0.05, 0.07, 0.12, 0.85));
+    draw_rectangle_lines(145.0, 20.0, 210.0, 50.0, 1.0, Color::new(0.0, 0.94, 1.0, 0.3));
+    draw_text("SCORE", 155.0, 38.0, 15.0, Color::new(0.6, 0.7, 0.8, 1.0));
+    draw_text(&format!("{}", score), 155.0, 61.0, 22.0, Color::new(1.0, 0.84, 0.0, 1.0));
+    draw_text(&format!("x{}", combo), 295.0, 61.0, 18.0, Color::new(0.0, 1.0, 0.4, 1.0));
 
-    draw_rectangle(400.0, 20.0, 150.0, 50.0, Color::new(0.05, 0.07, 0.12, 0.85));
-    draw_rectangle_lines(400.0, 20.0, 150.0, 50.0, 1.0, Color::new(0.0, 0.94, 1.0, 0.3));
-    draw_text("ENEMIES", 410.0, 40.0, 16.0, Color::new(0.6, 0.7, 0.8, 1.0));
-    draw_text(&format!("{}", enemies_left), 410.0, 62.0, 22.0, Color::new(1.0, 0.2, 0.27, 1.0));
+    draw_rectangle(365.0, 20.0, 130.0, 50.0, Color::new(0.05, 0.07, 0.12, 0.85));
+    draw_rectangle_lines(365.0, 20.0, 130.0, 50.0, 1.0, Color::new(0.0, 0.94, 1.0, 0.3));
+    draw_text("ENEMIES", 375.0, 38.0, 15.0, Color::new(0.6, 0.7, 0.8, 1.0));
+    draw_text(&format!("{}", enemies_left), 375.0, 61.0, 22.0, Color::new(1.0, 0.2, 0.27, 1.0));
+
+    draw_rectangle(505.0, 20.0, 120.0, 50.0, Color::new(0.05, 0.07, 0.12, 0.85));
+    draw_rectangle_lines(505.0, 20.0, 120.0, 50.0, 1.0, Color::new(0.2, 1.0, 0.6, 0.3));
+    draw_text("ALLIES", 515.0, 38.0, 15.0, Color::new(0.6, 0.7, 0.8, 1.0));
+    draw_text(&format!("{}", allies_count), 515.0, 61.0, 22.0, Color::new(0.2, 1.0, 0.6, 1.0));
+
+    // Top Right: Commander Hotkeys
+    let rx = screen_width() - 340.0;
+    draw_rectangle(rx, 20.0, 320.0, 50.0, Color::new(0.05, 0.07, 0.12, 0.85));
+    draw_rectangle_lines(rx, 20.0, 320.0, 50.0, 1.0, Color::new(1.0, 0.8, 0.0, 0.4));
+    draw_text("[G] GOI HOM TIEP TE SUNG", rx + 12.0, 40.0, 14.0, Color::new(1.0, 0.85, 0.1, 1.0));
+    draw_text("[B] TRIEU HOI DAI BOSS PHAO DAI", rx + 12.0, 60.0, 14.0, Color::new(1.0, 0.3, 0.4, 1.0));
 
     // Boss HP Bar
-    if let Some((boss_name, hp, max_hp)) = active_boss {
-        let bw = 420.0;
+    if let Some((boss_name, hp, max_hp, parts_left)) = active_boss {
+        let bw = 460.0;
         let bx = screen_width() / 2.0 - bw / 2.0;
-        let by = 84.0;
-        draw_rectangle(bx, by, bw, 40.0, Color::new(0.12, 0.02, 0.05, 0.9));
-        draw_rectangle_lines(bx, by, bw, 40.0, 1.5, Color::new(1.0, 0.0, 0.35, 0.8));
+        let by = 82.0;
+        draw_rectangle(bx, by, bw, 44.0, Color::new(0.12, 0.02, 0.05, 0.92));
+        draw_rectangle_lines(bx, by, bw, 44.0, 1.5, Color::new(1.0, 0.0, 0.35, 0.85));
         draw_text(
-            &format!("BOSS: {}", boss_name),
+            &format!("{} (MODULES ACTIVE: {})", boss_name, parts_left),
             bx + 14.0,
             by + 18.0,
-            16.0,
-            Color::new(1.0, 0.2, 0.35, 1.0),
+            15.0,
+            Color::new(1.0, 0.3, 0.4, 1.0),
         );
         let pct = (hp / max_hp.max(1.0)).clamp(0.0, 1.0);
-        draw_rectangle(bx + 14.0, by + 24.0, bw - 28.0, 10.0, Color::new(0.2, 0.05, 0.1, 1.0));
         draw_rectangle(
             bx + 14.0,
-            by + 24.0,
+            by + 26.0,
+            bw - 28.0,
+            10.0,
+            Color::new(0.2, 0.05, 0.1, 1.0),
+        );
+        draw_rectangle(
+            bx + 14.0,
+            by + 26.0,
             (bw - 28.0) * pct,
             10.0,
             Color::new(1.0, 0.0, 0.35, 1.0),
@@ -53,8 +72,8 @@ pub fn draw_hud(
 
     // Bottom Left: Vitals
     let by = screen_height() - 122.0;
-    draw_rectangle(20.0, by, 280.0, 102.0, Color::new(0.05, 0.07, 0.12, 0.85));
-    draw_rectangle_lines(20.0, by, 280.0, 102.0, 1.0, Color::new(0.0, 0.94, 1.0, 0.3));
+    draw_rectangle(20.0, by, 270.0, 102.0, Color::new(0.05, 0.07, 0.12, 0.85));
+    draw_rectangle_lines(20.0, by, 270.0, 102.0, 1.0, Color::new(0.0, 0.94, 1.0, 0.3));
 
     draw_text(
         &format!("CLASS: {}", player.class.name()),
@@ -64,7 +83,6 @@ pub fn draw_hud(
         Color::new(0.0, 0.94, 1.0, 1.0),
     );
 
-    // HP Bar
     draw_text(
         &format!("HP: {:.0} / {:.0}", player.body.hp, player.body.max_hp),
         30.0,
@@ -72,16 +90,15 @@ pub fn draw_hud(
         14.0,
         WHITE,
     );
-    draw_rectangle(30.0, by + 40.0, 260.0, 8.0, Color::new(0.2, 0.2, 0.2, 1.0));
+    draw_rectangle(30.0, by + 40.0, 250.0, 8.0, Color::new(0.2, 0.2, 0.2, 1.0));
     draw_rectangle(
         30.0,
         by + 40.0,
-        260.0 * (player.body.hp / player.body.max_hp).clamp(0.0, 1.0),
+        250.0 * (player.body.hp / player.body.max_hp).clamp(0.0, 1.0),
         8.0,
         Color::new(1.0, 0.2, 0.27, 1.0),
     );
 
-    // Shield Bar
     draw_text(
         &format!(
             "SHIELD: {:.0} / {:.0}",
@@ -92,82 +109,75 @@ pub fn draw_hud(
         14.0,
         WHITE,
     );
-    draw_rectangle(30.0, by + 68.0, 260.0, 8.0, Color::new(0.2, 0.2, 0.2, 1.0));
+    draw_rectangle(30.0, by + 68.0, 250.0, 8.0, Color::new(0.2, 0.2, 0.2, 1.0));
     draw_rectangle(
         30.0,
         by + 68.0,
-        260.0 * (player.body.shield / player.body.max_shield).clamp(0.0, 1.0),
+        250.0 * (player.body.shield / player.body.max_shield).clamp(0.0, 1.0),
         8.0,
         Color::new(0.0, 0.94, 1.0, 1.0),
     );
 
-    // Dash & Bullet Time
     let dash_pct = player.dash_cd_ratio();
     draw_text("DASH [SPACE]", 30.0, by + 90.0, 12.0, Color::new(1.0, 0.8, 0.0, 1.0));
-    draw_rectangle(30.0, by + 94.0, 120.0, 5.0, Color::new(0.2, 0.2, 0.2, 1.0));
-    draw_rectangle(30.0, by + 94.0, 120.0 * dash_pct, 5.0, Color::new(1.0, 0.8, 0.0, 1.0));
+    draw_rectangle(30.0, by + 94.0, 115.0, 5.0, Color::new(0.2, 0.2, 0.2, 1.0));
+    draw_rectangle(30.0, by + 94.0, 115.0 * dash_pct, 5.0, Color::new(1.0, 0.8, 0.0, 1.0));
 
-    draw_text("TIME [SHIFT]", 165.0, by + 90.0, 12.0, Color::new(0.7, 0.4, 1.0, 1.0));
-    draw_rectangle(165.0, by + 94.0, 125.0, 5.0, Color::new(0.2, 0.2, 0.2, 1.0));
+    draw_text("TIME [SHIFT]", 160.0, by + 90.0, 12.0, Color::new(0.7, 0.4, 1.0, 1.0));
+    draw_rectangle(160.0, by + 94.0, 120.0, 5.0, Color::new(0.2, 0.2, 0.2, 1.0));
     draw_rectangle(
-        165.0,
+        160.0,
         by + 94.0,
-        125.0 * (player.body.stamina / player.body.max_stamina).clamp(0.0, 1.0),
+        120.0 * (player.body.stamina / player.body.max_stamina).clamp(0.0, 1.0),
         5.0,
         Color::new(0.7, 0.4, 1.0, 1.0),
     );
 
-    // Bottom Right: Ammo & Active Reload
-    let w = player.current_weapon();
-    let reload = &player.reload_state;
-    let bx = screen_width() - 250.0;
-    draw_rectangle(bx, by, 230.0, 90.0, Color::new(0.05, 0.07, 0.12, 0.85));
-    draw_rectangle_lines(bx, by, 230.0, 90.0, 1.0, Color::new(0.0, 0.94, 1.0, 0.3));
+    // Bottom Center: Weapon Hotbar [1..7] & Skills
+    let slot_w = 72.0;
+    let total_w = (player.weapons.len() as f32) * (slot_w + 6.0);
+    let start_wx = screen_width() / 2.0 - total_w / 2.0;
+    let wy = screen_height() - 95.0;
 
-    draw_text(
-        w.stats.name,
-        bx + 16.0,
-        by + 26.0,
-        20.0,
-        Color::new(0.0, 0.94, 1.0, 1.0),
-    );
-    let reserve_str = if w.stats.reserve_ammo < 0 {
-        "INF".to_string()
-    } else {
-        format!("{}", w.stats.reserve_ammo)
-    };
-    draw_text(
-        &format!("{} / {}", w.stats.current_clip, reserve_str),
-        bx + 16.0,
-        by + 56.0,
-        28.0,
-        WHITE,
-    );
+    for (idx, w) in player.weapons.iter().enumerate() {
+        let sx = start_wx + (idx as f32) * (slot_w + 6.0);
+        let is_selected = idx == player.current_weapon_idx;
+        let bg = if !w.stats.unlocked {
+            Color::new(0.04, 0.05, 0.08, 0.5)
+        } else if is_selected {
+            Color::new(0.0, 0.32, 0.45, 0.92)
+        } else {
+            Color::new(0.06, 0.09, 0.14, 0.85)
+        };
+        let border = if !w.stats.unlocked {
+            Color::new(0.2, 0.25, 0.3, 0.3)
+        } else if is_selected {
+            w.stats.rarity.color()
+        } else {
+            Color::new(0.3, 0.4, 0.5, 0.5)
+        };
 
-    if reload.is_reloading {
-        let rw = 198.0;
-        let progress = (reload.timer / reload.duration).clamp(0.0, 1.0);
-        draw_rectangle(bx + 16.0, by + 68.0, rw, 12.0, Color::new(0.1, 0.15, 0.2, 1.0));
-        draw_rectangle(
-            bx + 16.0 + rw * 0.58,
-            by + 68.0,
-            rw * 0.24,
-            12.0,
-            Color::new(0.0, 1.0, 0.4, 0.5),
-        );
-        draw_rectangle(bx + 16.0 + rw * progress, by + 66.0, 4.0, 16.0, WHITE);
-    } else {
-        draw_text(
-            "[R] ACTIVE RELOAD",
-            bx + 16.0,
-            by + 80.0,
-            13.0,
-            Color::new(0.6, 0.7, 0.8, 1.0),
-        );
+        draw_rectangle(sx, wy, slot_w, 46.0, bg);
+        draw_rectangle_lines(sx, wy, slot_w, 46.0, if is_selected { 2.0 } else { 1.0 }, border);
+        draw_text(&format!("[{}]", idx + 1), sx + 5.0, wy + 14.0, 12.0, LIGHTGRAY);
+
+        if w.stats.unlocked {
+            let short_name: String = w.stats.name.chars().take(7).collect();
+            draw_text(&short_name, sx + 5.0, wy + 29.0, 12.0, w.stats.rarity.color());
+            draw_text(
+                &format!("Lv.{}", w.stats.level),
+                sx + 5.0,
+                wy + 42.0,
+                12.0,
+                WHITE,
+            );
+        } else {
+            draw_text("LOCKED", sx + 10.0, wy + 31.0, 12.0, DARKGRAY);
+        }
     }
 
-    // Center Skills (Dynamic via SkillBehavior trait)
-    let mut sx = screen_width() / 2.0 - 210.0;
+    // Skills bar below weapon slots
+    let mut sk_x = screen_width() / 2.0 - 230.0;
     for s in &player.skills {
         let status = if s.cooldown <= 0.0 {
             "READY".to_string()
@@ -176,11 +186,60 @@ pub fn draw_hud(
         };
         draw_text(
             &format!("[{}] {}: {}", s.behavior.key_label(), s.behavior.name(), status),
-            sx,
-            screen_height() - 30.0,
+            sk_x,
+            screen_height() - 22.0,
             14.0,
             Color::new(0.0, 0.94, 1.0, 1.0),
         );
-        sx += 155.0;
+        sk_x += 175.0;
+    }
+
+    // Bottom Right: Current Weapon Details & Active Reload
+    let w = player.current_weapon();
+    let reload = &player.reload_state;
+    let bx = screen_width() - 255.0;
+    draw_rectangle(bx, by, 235.0, 102.0, Color::new(0.05, 0.07, 0.12, 0.85));
+    draw_rectangle_lines(bx, by, 235.0, 102.0, 1.5, w.stats.rarity.color());
+
+    draw_text(
+        &format!("{} Lv.{}", w.stats.name, w.stats.level),
+        bx + 14.0,
+        by + 24.0,
+        18.0,
+        w.stats.rarity.color(),
+    );
+    let reserve_str = if w.stats.reserve_ammo < 0 {
+        "INF".to_string()
+    } else {
+        format!("{}", w.stats.reserve_ammo)
+    };
+    draw_text(
+        &format!("{} / {}", w.stats.current_clip, reserve_str),
+        bx + 14.0,
+        by + 56.0,
+        28.0,
+        WHITE,
+    );
+
+    if reload.is_reloading {
+        let rw = 204.0;
+        let progress = (reload.timer / reload.duration).clamp(0.0, 1.0);
+        draw_rectangle(bx + 14.0, by + 72.0, rw, 12.0, Color::new(0.1, 0.15, 0.2, 1.0));
+        draw_rectangle(
+            bx + 14.0 + rw * 0.58,
+            by + 72.0,
+            rw * 0.24,
+            12.0,
+            Color::new(0.0, 1.0, 0.4, 0.5),
+        );
+        draw_rectangle(bx + 14.0 + rw * progress, by + 70.0, 4.0, 16.0, WHITE);
+    } else {
+        draw_text(
+            "[R] ACTIVE RELOAD | [F] NHAT SUNG",
+            bx + 14.0,
+            by + 84.0,
+            12.0,
+            Color::new(0.6, 0.7, 0.8, 1.0),
+        );
     }
 }

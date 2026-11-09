@@ -1,8 +1,10 @@
 use macroquad::prelude::*;
 use std::f32::consts::PI;
 use crate::core::context::CombatContext;
+use crate::core::events::{MeteorWarningStrikeEvent, ShockwaveRingEvent};
+use crate::core::props::{WeaponDrop, WeaponRarity};
 use crate::core::types::StatusEffect;
-use crate::enemy::traits::{EnemyBehavior, EnemyBody, EnemyEntity};
+use crate::enemy::traits::{BossPartBehavior, EnemyBehavior, EnemyBody, EnemyEntity};
 use crate::weapon::projectile::Projectile;
 
 // ==========================================
@@ -19,7 +21,7 @@ impl EnemyBehavior for SwarmRunner {
         body.pos += dir * body.speed * dt;
 
         if dist < ctx.player_radius + body.radius {
-            ctx.damage_player(15.0);
+            ctx.damage_player(14.0);
             body.vel -= dir * 200.0;
         }
     }
@@ -54,6 +56,7 @@ impl EnemyBehavior for AcidSpitter {
                 color: Color::new(0.0, 1.0, 0.4, 1.0),
                 radius: 6.0,
                 explosion_radius: None,
+                spawns_black_hole: false,
                 pierce: 0,
                 bounces: 0,
                 life: 3.0,
@@ -83,25 +86,31 @@ impl EnemyBehavior for KamikazeDrone {
         body.pos += dir * body.speed * dt;
 
         if dist < 42.0 {
-            body.hp = 0.0; // Kích hoạt on_death nổ tung
+            body.hp = 0.0;
         }
     }
 
     fn on_death(&mut self, body: &EnemyBody, ctx: &mut CombatContext) {
         ctx.trigger_explosion(body.pos, 85.0, 35.0);
         if (ctx.player_pos - body.pos).length() < 85.0 + ctx.player_radius {
-            ctx.damage_player(32.0);
+            ctx.damage_player(30.0);
         }
     }
 
     fn draw_custom(&self, body: &EnemyBody, screen_pos: Vec2, _cam_offset: Vec2) {
         let r = body.radius + 4.0 + self.pulse.sin().abs() * 5.0;
-        draw_circle_lines(screen_pos.x, screen_pos.y, r, 1.5, Color::new(1.0, 0.5, 0.0, 0.6));
+        draw_circle_lines(
+            screen_pos.x,
+            screen_pos.y,
+            r,
+            1.5,
+            Color::new(1.0, 0.5, 0.0, 0.6),
+        );
     }
 }
 
 // ==========================================
-// 4. BRUTE CHARGER (Quái húc hạng nặng)
+// 4. BRUTE CHARGER (Quái húc hạng nặng - Rơi Súng khi hạ!)
 // ==========================================
 pub struct BruteCharger {
     pub charge_timer: f32,
@@ -138,6 +147,17 @@ impl EnemyBehavior for BruteCharger {
         }
     }
 
+    fn on_death(&mut self, body: &EnemyBody, ctx: &mut CombatContext) {
+        // Quái Tinh Anh (Brute) có 45% tỉ lệ rơi thẳng Súng xuống đất!
+        if rand::gen_range(0.0, 1.0) < 0.45 {
+            ctx.spawn_weapon_drop(WeaponDrop::new(
+                body.pos,
+                rand::gen_range(1, 7),
+                WeaponRarity::random(),
+            ));
+        }
+    }
+
     fn draw_custom(&self, body: &EnemyBody, screen_pos: Vec2, _cam_offset: Vec2) {
         if self.is_charging {
             let dir = vec2(self.charge_angle.cos(), self.charge_angle.sin());
@@ -150,7 +170,13 @@ impl EnemyBehavior for BruteCharger {
                 Color::new(1.0, 0.1, 0.3, 0.6),
             );
         } else {
-            draw_circle_lines(screen_pos.x, screen_pos.y, body.radius + 3.0, 2.5, Color::new(0.8, 0.4, 1.0, 0.8));
+            draw_circle_lines(
+                screen_pos.x,
+                screen_pos.y,
+                body.radius + 3.0,
+                2.5,
+                Color::new(0.8, 0.4, 1.0, 0.8),
+            );
         }
     }
 }
@@ -159,7 +185,7 @@ impl EnemyBehavior for BruteCharger {
 // 5. SPLITTER SLIME (Quái phân tách thành 2 khi chết)
 // ==========================================
 pub struct SplitterSlime {
-    pub generation: u8, // 1 = lớn (tách làm 2), 0 = nhỏ (không tách nữa)
+    pub generation: u8,
 }
 
 impl EnemyBehavior for SplitterSlime {
@@ -171,7 +197,7 @@ impl EnemyBehavior for SplitterSlime {
         body.pos += dir * body.speed * dt;
 
         if dist < ctx.player_radius + body.radius {
-            ctx.damage_player(if self.generation > 0 { 18.0 } else { 10.0 });
+            ctx.damage_player(if self.generation > 0 { 16.0 } else { 9.0 });
             body.vel -= dir * 220.0;
         }
     }
@@ -200,7 +226,9 @@ impl EnemyBehavior for SplitterSlime {
                     max_hp: body.max_hp * 0.4,
                     is_boss: false,
                     score_reward: 60,
+                    hit_flash: 0.0,
                     statuses: Vec::new(),
+                    parts: Vec::new(),
                 };
                 ctx.spawn_enemy(EnemyEntity::new(
                     mini_body,
@@ -226,7 +254,6 @@ impl EnemyBehavior for SniperBot {
         let dist = to_player.length();
         let dir = to_player.normalize_or_zero();
 
-        // Giữ khoảng cách xa (420..600px)
         if dist < 380.0 {
             body.pos -= dir * body.speed * dt;
         } else if dist > 580.0 {
@@ -238,11 +265,12 @@ impl EnemyBehavior for SniperBot {
             self.aim_timer = 0.0;
             ctx.spawn_enemy_projectile(Projectile {
                 pos: body.pos,
-                vel: dir * 820.0, // Đạn bắn tỉa siêu tốc
-                damage: 32.0,
+                vel: dir * 820.0,
+                damage: 30.0,
                 color: Color::new(1.0, 0.1, 0.2, 1.0),
                 radius: 4.5,
                 explosion_radius: None,
+                spawns_black_hole: false,
                 pierce: 0,
                 bounces: 0,
                 life: 2.5,
@@ -252,7 +280,6 @@ impl EnemyBehavior for SniperBot {
     }
 
     fn draw_custom(&self, _body: &EnemyBody, screen_pos: Vec2, cam_offset: Vec2) {
-        // Vẽ tia laser đỏ nhắm thẳng vào người chơi khi sắp bắn
         if self.aim_timer > 1.0 {
             let target_sp = self.target_pos + cam_offset;
             let alpha = ((self.aim_timer - 1.0) / 1.4).clamp(0.15, 0.85);
@@ -268,13 +295,144 @@ impl EnemyBehavior for SniperBot {
     }
 }
 
+// =========================================================
+// 7. CÁC BỘ PHẬN ĐỘC LẬP CỦA ĐẠI BOSS (Multi-Part Boss Modules)
+// =========================================================
+
+/// Bộ phận 1: Cánh tay Pháo Cối (Bắn đạn pháo có Vòng Cảnh Báo Đỏ Telegraph)
+pub struct MortarArtilleryArmPart {
+    pub timer: f32,
+}
+
+impl BossPartBehavior for MortarArtilleryArmPart {
+    fn update_part(
+        &mut self,
+        _boss_pos: Vec2,
+        _part_world_pos: Vec2,
+        ctx: &mut CombatContext,
+        dt: f32,
+    ) {
+        self.timer += dt;
+        if self.timer >= 3.2 {
+            self.timer = 0.0;
+            for _ in 0..3 {
+                let offset = vec2(
+                    rand::gen_range(-170.0, 170.0),
+                    rand::gen_range(-170.0, 170.0),
+                );
+                ctx.spawn_event(Box::new(MeteorWarningStrikeEvent {
+                    target_pos: ctx.player_pos + offset,
+                    radius: 85.0,
+                    damage: 34.0,
+                    timer: 0.0,
+                    max_time: 1.35,
+                    harms_player: true,
+                }));
+            }
+        }
+    }
+}
+
+/// Bộ phận 2: Ụ Súng Laser Liên Thanh (Xả chùm đạn năng lượng tốc độ cao)
+pub struct GatlingLaserTurretPart {
+    pub timer: f32,
+}
+
+impl BossPartBehavior for GatlingLaserTurretPart {
+    fn update_part(
+        &mut self,
+        _boss_pos: Vec2,
+        part_world_pos: Vec2,
+        ctx: &mut CombatContext,
+        dt: f32,
+    ) {
+        self.timer += dt;
+        if self.timer >= 1.5 {
+            self.timer = 0.0;
+            let to_player = ctx.player_pos - part_world_pos;
+            let base_angle = to_player.y.atan2(to_player.x);
+            for offset in [-0.28f32, -0.14, 0.0, 0.14, 0.28] {
+                let a = base_angle + offset;
+                ctx.spawn_enemy_projectile(Projectile {
+                    pos: part_world_pos,
+                    vel: vec2(a.cos(), a.sin()) * 450.0,
+                    damage: 22.0,
+                    color: Color::new(1.0, 0.85, 0.0, 1.0),
+                    radius: 6.5,
+                    explosion_radius: None,
+                    spawns_black_hole: false,
+                    pierce: 0,
+                    bounces: 0,
+                    life: 3.0,
+                    status_effect: None,
+                });
+            }
+        }
+    }
+}
+
+/// Bộ phận 3: Lõi Phát Khiên Năng Lượng (Giảm 65% sát thương vào Boss cho đến khi bị bắn vỡ!)
+pub struct ShieldGeneratorPart;
+
+impl BossPartBehavior for ShieldGeneratorPart {
+    fn update_part(
+        &mut self,
+        _boss_pos: Vec2,
+        _part_world_pos: Vec2,
+        _ctx: &mut CombatContext,
+        _dt: f32,
+    ) {
+    }
+
+    fn is_shield_generator(&self) -> bool {
+        true
+    }
+}
+
+/// Bộ phận 4: Khoang Đẻ Drone Cảm Tử (Triệu hồi Kamikaze Drone liên tục)
+pub struct DroneHatcheryBayPart {
+    pub timer: f32,
+    pub wave_level: u32,
+}
+
+impl BossPartBehavior for DroneHatcheryBayPart {
+    fn update_part(
+        &mut self,
+        _boss_pos: Vec2,
+        part_world_pos: Vec2,
+        ctx: &mut CombatContext,
+        dt: f32,
+    ) {
+        self.timer += dt;
+        if self.timer >= 4.2 {
+            self.timer = 0.0;
+            ctx.spawn_enemy(EnemyEntity::new(
+                EnemyBody {
+                    name: "MINION DRONE",
+                    pos: part_world_pos,
+                    vel: Vec2::ZERO,
+                    radius: 12.0,
+                    speed: 255.0,
+                    color: Color::new(1.0, 0.66, 0.0, 1.0),
+                    hp: 35.0 + (self.wave_level as f32) * 4.0,
+                    max_hp: 35.0 + (self.wave_level as f32) * 4.0,
+                    is_boss: false,
+                    score_reward: 80,
+                    hit_flash: 0.0,
+                    statuses: Vec::new(),
+                    parts: Vec::new(),
+                },
+                Box::new(KamikazeDrone { pulse: 0.0 }),
+            ));
+        }
+    }
+}
+
 // ==========================================
-// 7. CYBER TITAN BOSS (Boss đa giai đoạn)
+// 8. COLOSSUS FORTRESS BOSS (Thân chính của Đại Boss)
 // ==========================================
 pub struct CyberTitanBoss {
     pub attack_timer: f32,
-    pub phase: usize,
-    pub wave_level: u32,
 }
 
 impl EnemyBehavior for CyberTitanBoss {
@@ -286,70 +444,33 @@ impl EnemyBehavior for CyberTitanBoss {
         body.pos += dir * body.speed * dt;
         self.attack_timer += dt;
 
-        if self.attack_timer >= 1.8 {
+        // Vòng đạn xoáy 12 hướng từ Lõi Trung Tâm
+        if self.attack_timer >= 2.4 {
             self.attack_timer = 0.0;
-            self.phase = (self.phase + 1) % 3;
+            ctx.spawn_event(Box::new(ShockwaveRingEvent {
+                center: body.pos,
+                current_radius: body.radius,
+                max_radius: 190.0,
+                speed: 420.0,
+                color: Color::new(1.0, 0.0, 0.4, 0.85),
+                thickness: 5.0,
+            }));
 
-            match self.phase {
-                0 => {
-                    // Vòng đạn xoáy 12 hướng
-                    for a in 0..12 {
-                        let angle = (a as f32) * (PI * 2.0 / 12.0);
-                        ctx.spawn_enemy_projectile(Projectile {
-                            pos: body.pos,
-                            vel: vec2(angle.cos(), angle.sin()) * 330.0,
-                            damage: 25.0,
-                            color: Color::new(1.0, 0.0, 0.35, 1.0),
-                            radius: 7.0,
-                            explosion_radius: None,
-                            pierce: 0,
-                            bounces: 0,
-                            life: 3.5,
-                            status_effect: None,
-                        });
-                    }
-                }
-                1 => {
-                    // Chùm đạn 3 tia cực mạnh về phía người chơi
-                    let base_angle = to_player.y.atan2(to_player.x);
-                    for offset in [-0.25f32, 0.0, 0.25] {
-                        let a = base_angle + offset;
-                        ctx.spawn_enemy_projectile(Projectile {
-                            pos: body.pos,
-                            vel: vec2(a.cos(), a.sin()) * 440.0,
-                            damage: 30.0,
-                            color: Color::new(1.0, 0.84, 0.0, 1.0),
-                            radius: 8.0,
-                            explosion_radius: None,
-                            pierce: 0,
-                            bounces: 0,
-                            life: 3.0,
-                            status_effect: None,
-                        });
-                    }
-                }
-                _ => {
-                    // Triệu hồi 2 Kamikaze Drone bảo vệ
-                    for sign in [-1.0f32, 1.0] {
-                        let spawn_pos = body.pos + vec2(sign * 50.0, 0.0);
-                        ctx.spawn_enemy(EnemyEntity::new(
-                            EnemyBody {
-                                name: "MINION DRONE",
-                                pos: spawn_pos,
-                                vel: Vec2::ZERO,
-                                radius: 12.0,
-                                speed: 250.0,
-                                color: Color::new(1.0, 0.66, 0.0, 1.0),
-                                hp: 35.0 + (self.wave_level as f32) * 4.0,
-                                max_hp: 35.0 + (self.wave_level as f32) * 4.0,
-                                is_boss: false,
-                                score_reward: 80,
-                                statuses: Vec::new(),
-                            },
-                            Box::new(KamikazeDrone { pulse: 0.0 }),
-                        ));
-                    }
-                }
+            for a in 0..12 {
+                let angle = (a as f32) * (PI * 2.0 / 12.0);
+                ctx.spawn_enemy_projectile(Projectile {
+                    pos: body.pos,
+                    vel: vec2(angle.cos(), angle.sin()) * 320.0,
+                    damage: 24.0,
+                    color: Color::new(1.0, 0.0, 0.35, 1.0),
+                    radius: 7.0,
+                    explosion_radius: None,
+                    spawns_black_hole: false,
+                    pierce: 0,
+                    bounces: 0,
+                    life: 3.5,
+                    status_effect: None,
+                });
             }
         }
 
@@ -358,7 +479,23 @@ impl EnemyBehavior for CyberTitanBoss {
         }
     }
 
+    fn on_death(&mut self, body: &EnemyBody, ctx: &mut CombatContext) {
+        ctx.trigger_explosion(body.pos, 220.0, 500.0);
+        // Chắc chắn rơi Súng Huyền Thoại (Legendary) khi tiêu diệt Đại Boss!
+        ctx.spawn_weapon_drop(WeaponDrop::new(
+            body.pos,
+            rand::gen_range(2, 7),
+            WeaponRarity::Legendary,
+        ));
+    }
+
     fn draw_custom(&self, body: &EnemyBody, screen_pos: Vec2, _cam_offset: Vec2) {
-        draw_circle_lines(screen_pos.x, screen_pos.y, body.radius + 6.0, 3.0, Color::new(1.0, 0.0, 0.4, 0.7));
+        draw_circle_lines(
+            screen_pos.x,
+            screen_pos.y,
+            body.radius + 6.0,
+            3.0,
+            Color::new(1.0, 0.0, 0.4, 0.7),
+        );
     }
 }

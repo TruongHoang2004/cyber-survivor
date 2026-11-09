@@ -1,3 +1,4 @@
+mod ally;
 mod character;
 mod core;
 mod enemy;
@@ -10,7 +11,7 @@ use macroquad::prelude::*;
 
 fn window_conf() -> Conf {
     Conf {
-        window_title: "CYBER SURVIVOR (Rust Modular Trait Architecture)".to_string(),
+        window_title: "CYBER SURVIVOR (Grand-Scale Modular Rust Action)".to_string(),
         window_width: 1280,
         window_height: 720,
         high_dpi: true,

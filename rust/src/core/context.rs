@@ -1,4 +1,7 @@
 use macroquad::prelude::*;
+use crate::ally::AlliedEntity;
+use crate::core::events::BattlefieldEvent;
+use crate::core::props::WeaponDrop;
 use crate::core::types::{Decal, FloatText, Particle};
 use crate::enemy::traits::EnemyEntity;
 use crate::skill::deployables::Deployable;
@@ -8,10 +11,32 @@ pub enum WorldCommand {
     SpawnPlayerProjectile(Projectile),
     SpawnEnemyProjectile(Projectile),
     SpawnEnemy(EnemyEntity),
+    SpawnAlly(AlliedEntity),
     SpawnDeployable(Deployable),
+    SpawnEvent(Box<dyn BattlefieldEvent>),
+    SpawnWeaponDrop(WeaponDrop),
     TriggerExplosion {
         pos: Vec2,
         radius: f32,
+        damage: f32,
+    },
+    ApplyVortexPull {
+        center: Vec2,
+        radius: f32,
+        pull_step: f32,
+        damage_step: f32,
+    },
+    RailgunStrike {
+        start: Vec2,
+        end: Vec2,
+        width: f32,
+        damage: f32,
+    },
+    ChainLightning {
+        origin: Vec2,
+        aim_dir: Vec2,
+        max_jumps: usize,
+        jump_range: f32,
         damage: f32,
     },
     DamagePlayer(f32),
@@ -41,7 +66,7 @@ impl CombatContext {
             player_radius,
             player_is_dashing,
             enemy_positions,
-            commands: Vec::with_capacity(32),
+            commands: Vec::with_capacity(48),
         }
     }
 
@@ -57,14 +82,67 @@ impl CombatContext {
         self.commands.push(WorldCommand::SpawnEnemy(enemy));
     }
 
+    pub fn spawn_ally(&mut self, ally: AlliedEntity) {
+        self.commands.push(WorldCommand::SpawnAlly(ally));
+    }
+
     pub fn spawn_deployable(&mut self, dep: Deployable) {
         self.commands.push(WorldCommand::SpawnDeployable(dep));
+    }
+
+    pub fn spawn_event(&mut self, ev: Box<dyn BattlefieldEvent>) {
+        self.commands.push(WorldCommand::SpawnEvent(ev));
+    }
+
+    pub fn spawn_weapon_drop(&mut self, drop: WeaponDrop) {
+        self.commands.push(WorldCommand::SpawnWeaponDrop(drop));
     }
 
     pub fn trigger_explosion(&mut self, pos: Vec2, radius: f32, damage: f32) {
         self.commands.push(WorldCommand::TriggerExplosion {
             pos,
             radius,
+            damage,
+        });
+    }
+
+    pub fn apply_vortex_pull(
+        &mut self,
+        center: Vec2,
+        radius: f32,
+        pull_step: f32,
+        damage_step: f32,
+    ) {
+        self.commands.push(WorldCommand::ApplyVortexPull {
+            center,
+            radius,
+            pull_step,
+            damage_step,
+        });
+    }
+
+    pub fn railgun_strike(&mut self, start: Vec2, end: Vec2, width: f32, damage: f32) {
+        self.commands.push(WorldCommand::RailgunStrike {
+            start,
+            end,
+            width,
+            damage,
+        });
+    }
+
+    pub fn chain_lightning(
+        &mut self,
+        origin: Vec2,
+        aim_dir: Vec2,
+        max_jumps: usize,
+        jump_range: f32,
+        damage: f32,
+    ) {
+        self.commands.push(WorldCommand::ChainLightning {
+            origin,
+            aim_dir,
+            max_jumps,
+            jump_range,
             damage,
         });
     }
@@ -83,7 +161,14 @@ impl CombatContext {
         self.commands.push(WorldCommand::SpawnParticle(p));
     }
 
-    pub fn spawn_particle_burst(&mut self, pos: Vec2, color: Color, count: usize, max_speed: f32, life: f32) {
+    pub fn spawn_particle_burst(
+        &mut self,
+        pos: Vec2,
+        color: Color,
+        count: usize,
+        max_speed: f32,
+        life: f32,
+    ) {
         for _ in 0..count {
             let angle = rand::gen_range(0.0, std::f32::consts::PI * 2.0);
             let spd = rand::gen_range(max_speed * 0.2, max_speed);
@@ -102,13 +187,19 @@ impl CombatContext {
         self.commands.push(WorldCommand::SpawnDecal(decal));
     }
 
-    pub fn spawn_float_text(&mut self, pos: Vec2, text: impl Into<String>, color: Color, size: f32) {
+    pub fn spawn_float_text(
+        &mut self,
+        pos: Vec2,
+        text: impl Into<String>,
+        color: Color,
+        size: f32,
+    ) {
         self.commands.push(WorldCommand::SpawnFloatText(FloatText {
             pos,
             text: text.into(),
             color,
             size,
-            life: 0.9,
+            life: 0.95,
         }));
     }
 

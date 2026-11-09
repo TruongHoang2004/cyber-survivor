@@ -1,5 +1,6 @@
 use macroquad::prelude::*;
 use crate::core::context::CombatContext;
+use crate::core::props::WeaponRarity;
 use crate::core::types::PlayerModifiers;
 
 #[derive(Clone)]
@@ -15,6 +16,9 @@ pub struct WeaponStats {
     pub reload_duration: f32,
     pub color: Color,
     pub screen_shake: f32,
+    pub unlocked: bool,
+    pub level: u32,
+    pub rarity: WeaponRarity,
 }
 
 pub trait WeaponBehavior: Send + Sync {

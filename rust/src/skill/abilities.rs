@@ -1,5 +1,12 @@
 use macroquad::prelude::*;
+use crate::ally::{
+    AlliedBody, AlliedEntity, AlliedHeavyMech, AlliedMarine, OrbitingCombatDrone,
+};
 use crate::core::context::CombatContext;
+use crate::core::events::{
+    CarpetBombingRunEvent, OrbitalLaserStrikeEvent, ShockwaveRingEvent, SupplyPodDropEvent,
+};
+use crate::core::props::WeaponRarity;
 use crate::core::types::{Particle, PlayerBody};
 use crate::skill::deployables::Deployable;
 use crate::skill::traits::{SkillBehavior, SkillSlot};
@@ -35,8 +42,17 @@ impl SkillBehavior for TacticalDashSkill {
 
         player.is_dashing = true;
         player.dash_duration = 0.22;
-        player.vel = dash_dir * 820.0;
+        player.vel = dash_dir * 840.0;
         ctx.add_screen_shake(4.0);
+
+        ctx.spawn_event(Box::new(ShockwaveRingEvent {
+            center: player.pos,
+            current_radius: 8.0,
+            max_radius: 75.0,
+            speed: 450.0,
+            color: Color::new(1.0, 0.85, 0.1, 0.8),
+            thickness: 3.5,
+        }));
 
         for _ in 0..14 {
             ctx.spawn_particle(Particle {
@@ -61,11 +77,11 @@ impl SkillBehavior for TacticalDashSkill {
 }
 
 #[derive(Clone)]
-pub struct ClusterGrenadeSkill;
+pub struct TacticalAirstrikeSkill;
 
-impl SkillBehavior for ClusterGrenadeSkill {
+impl SkillBehavior for TacticalAirstrikeSkill {
     fn name(&self) -> &'static str {
-        "GRENADE"
+        "AIRSTRIKE + LASER"
     }
 
     fn key_label(&self) -> &'static str {
@@ -80,13 +96,48 @@ impl SkillBehavior for ClusterGrenadeSkill {
         ctx: &mut CombatContext,
     ) -> bool {
         let dir = (aim_world - player.pos).normalize_or_zero();
+        let strike_dir = if dir == Vec2::ZERO {
+            vec2(1.0, 0.0)
+        } else {
+            dir
+        };
+
+        // 1. Không kích rải thảm 10 quả bom liên hoàn dọc theo hướng ngắm
+        ctx.spawn_event(Box::new(CarpetBombingRunEvent {
+            start_pos: player.pos + strike_dir * 75.0,
+            dir: strike_dir,
+            total_bombs: 10,
+            bombs_dropped: 0,
+            step_distance: 65.0,
+            timer: 0.0,
+            warmup_timer: 0.25,
+        }));
+
+        // 2. Tia Laser Vệ Tinh Quỹ Đạo quét mục tiêu tại vị trí con trỏ chuột
+        ctx.spawn_event(Box::new(OrbitalLaserStrikeEvent {
+            pos: aim_world,
+            speed: 240.0,
+            radius: 48.0,
+            dps: 260.0,
+            duration: 4.5,
+            decal_timer: 0.0,
+        }));
+
+        // 3. Ném thêm Lựu Đạn Nổ Chùm tầm gần
         ctx.spawn_deployable(Deployable::ClusterGrenade {
             pos: player.pos,
-            vel: dir * 480.0,
-            fuse: 1.25,
+            vel: strike_dir * 460.0,
+            fuse: 1.0,
             radius: 6.0,
             is_cluster_child: false,
         });
+
+        ctx.spawn_float_text(
+            player.pos - vec2(0.0, 40.0),
+            "TACTICAL AIRSTRIKE & ORBITAL LASER!",
+            Color::new(1.0, 0.4, 0.1, 1.0),
+            22.0,
+        );
         true
     }
 
@@ -96,11 +147,11 @@ impl SkillBehavior for ClusterGrenadeSkill {
 }
 
 #[derive(Clone)]
-pub struct AutoTurretSkill;
+pub struct ReinforcementsDropSkill;
 
-impl SkillBehavior for AutoTurretSkill {
+impl SkillBehavior for ReinforcementsDropSkill {
     fn name(&self) -> &'static str {
-        "TURRET"
+        "SQUAD + SUPPLY"
     }
 
     fn key_label(&self) -> &'static str {
@@ -110,27 +161,103 @@ impl SkillBehavior for AutoTurretSkill {
     fn activate(
         &mut self,
         player: &mut PlayerBody,
-        _aim_world: Vec2,
+        aim_world: Vec2,
         _move_dir: Vec2,
         ctx: &mut CombatContext,
     ) -> bool {
+        // 1. Triển khai 2 Lính Thủy Quân Lục Chiến Đồng Minh đi theo đội hình
+        for (i, offset) in [vec2(-55.0, -45.0), vec2(-55.0, 45.0)].iter().enumerate() {
+            ctx.spawn_ally(AlliedEntity::new(
+                AlliedBody {
+                    name: "ALLIED MARINE",
+                    pos: player.pos + *offset,
+                    vel: Vec2::ZERO,
+                    angle: player.angle,
+                    radius: 13.0,
+                    speed: 285.0,
+                    color: Color::new(0.15, 0.85, 1.0, 1.0),
+                    hp: 150.0,
+                    max_hp: 150.0,
+                    life: 30.0,
+                },
+                Box::new(AlliedMarine {
+                    formation_offset: *offset,
+                    fire_timer: (i as f32) * 0.09,
+                }),
+            ));
+        }
+
+        // 2. Triển khai 1 Robot Chiến Đấu Hạng Nặng (Heavy Mech)
+        ctx.spawn_ally(AlliedEntity::new(
+            AlliedBody {
+                name: "HEAVY MECH",
+                pos: player.pos + vec2(45.0, 0.0),
+                vel: Vec2::ZERO,
+                angle: player.angle,
+                radius: 22.0,
+                speed: 195.0,
+                color: Color::new(0.2, 1.0, 0.55, 1.0),
+                hp: 400.0,
+                max_hp: 400.0,
+                life: 32.0,
+            },
+            Box::new(AlliedHeavyMech {
+                fire_timer: 0.0,
+                rocket_timer: 0.5,
+            }),
+        ));
+
+        // 3. Triển khai 1 Drone Hộ Tống xoay quanh người chơi
+        ctx.spawn_ally(AlliedEntity::new(
+            AlliedBody {
+                name: "ORBIT DRONE",
+                pos: player.pos,
+                vel: Vec2::ZERO,
+                angle: 0.0,
+                radius: 9.0,
+                speed: 300.0,
+                color: Color::new(0.75, 0.35, 1.0, 1.0),
+                hp: 100.0,
+                max_hp: 100.0,
+                life: 35.0,
+            },
+            Box::new(OrbitingCombatDrone {
+                orbit_angle: rand::gen_range(0.0, 6.28),
+                orbit_radius: 56.0,
+                fire_timer: 0.0,
+            }),
+        ));
+
+        // 4. Đặt 1 Ụ Súng Tự Động tại chỗ
         let fire_interval = if player.modifiers.turret_overclock {
-            0.11
+            0.10
         } else {
-            0.22
-        };
-        let life = if player.modifiers.turret_overclock {
-            35.0
-        } else {
-            20.0
+            0.20
         };
         ctx.spawn_deployable(Deployable::AutoTurret {
             pos: player.pos,
             angle: player.angle,
             fire_timer: 0.0,
             fire_interval,
-            life,
+            life: 28.0,
         });
+
+        // 5. Gọi 1 Hòm Tiếp Tế Vũ Khí Hạng Nặng rơi từ quỹ đạo xuống vị trí chuột
+        let weapon_id = rand::gen_range(1, 7);
+        ctx.spawn_event(Box::new(SupplyPodDropEvent {
+            landing_pos: aim_world,
+            timer: 0.0,
+            max_time: 1.1,
+            weapon_id,
+            rarity: WeaponRarity::random(),
+        }));
+
+        ctx.spawn_float_text(
+            player.pos - vec2(0.0, 40.0),
+            "REINFORCEMENTS & SUPPLY POD INBOUND!",
+            Color::new(0.2, 1.0, 0.6, 1.0),
+            22.0,
+        );
         true
     }
 
@@ -141,8 +268,8 @@ impl SkillBehavior for AutoTurretSkill {
 
 pub fn default_skills() -> Vec<SkillSlot> {
     vec![
-        SkillSlot::new(KeyCode::Space, 1.2, Box::new(TacticalDashSkill)),
-        SkillSlot::new(KeyCode::Q, 8.0, Box::new(ClusterGrenadeSkill)),
-        SkillSlot::new(KeyCode::E, 16.0, Box::new(AutoTurretSkill)),
+        SkillSlot::new(KeyCode::Space, 1.1, Box::new(TacticalDashSkill)),
+        SkillSlot::new(KeyCode::Q, 7.5, Box::new(TacticalAirstrikeSkill)),
+        SkillSlot::new(KeyCode::E, 14.0, Box::new(ReinforcementsDropSkill)),
     ]
 }
