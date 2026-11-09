@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>CYBER SURVIVOR: 2D Top-Down Action Shooter</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- In-Game HUD -->
+    <div id="hud">
+      <!-- Top Bar: Wave, Score, Timer -->
+      <div class="hud-top">
+        <div class="hud-box wave-box">
+          <span class="hud-label">WAVE</span>
+          <span id="wave-num" class="hud-value neon-cyan">1</span>
+        </div>
+        <div class="hud-box score-box">
+          <span class="hud-label">SCORE</span>
+          <span id="score-val" class="hud-value neon-gold">0</span>
+          <span id="combo-display" class="hud-sub">COMBO x1</span>
+        </div>
+        <div class="hud-box enemies-box">
+          <span class="hud-label">ENEMIES LEFT</span>
+          <span id="enemies-num" class="hud-value neon-red">0</span>
+        </div>
+      </div>
+
+      <!-- Boss Health Bar -->
+      <div id="boss-hud" class="boss-hud hidden">
+        <div class="boss-title">⚠️ BOSS: <span id="boss-name">CYBER TITAN</span> ⚠️</div>
+        <div class="boss-bar-wrap">
+          <div id="boss-hp-fill" class="boss-hp-fill"></div>
+        </div>
+      </div>
+
+      <!-- Bottom Bar: Player Status & Weapons -->
+      <div class="hud-bottom">
+        <!-- Vitals: HP & Dash & Adrenaline -->
+        <div class="vitals-panel">
+          <div class="bar-group">
+            <div class="bar-label"><span>HP</span><span id="hp-text">100 / 100</span></div>
+            <div class="bar-container hp-container">
+              <div id="hp-bar" class="bar-fill hp-fill" style="width: 100%;"></div>
+            </div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-label"><span>SHIELD</span><span id="shield-text">50 / 50</span></div>
+            <div class="bar-container shield-container">
+              <div id="shield-bar" class="bar-fill shield-fill" style="width: 100%;"></div>
+            </div>
+          </div>
+          <div class="bar-row">
+            <div class="sub-bar-group">
+              <div class="bar-label-tiny">DASH [SPACE]</div>
+              <div class="bar-container dash-container">
+                <div id="dash-bar" class="bar-fill dash-fill" style="width: 100%;"></div>
+              </div>
+            </div>
+            <div class="sub-bar-group">
+              <div class="bar-label-tiny">BULLET-TIME [SHIFT]</div>
+              <div class="bar-container stamina-container">
+                <div id="adren-bar" class="bar-fill adren-fill" style="width: 100%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Weapon Hotbar -->
+        <div class="weapons-panel">
+          <div class="weapon-slots">
+            <div class="weapon-slot active" data-slot="1">
+              <span class="slot-key">1</span>
+              <span class="slot-name">PISTOL</span>
+              <span class="slot-ammo">∞</span>
+            </div>
+            <div class="weapon-slot" data-slot="2">
+              <span class="slot-key">2</span>
+              <span class="slot-name">SHOTGUN</span>
+              <span class="slot-ammo" id="slot-2-ammo">32</span>
+            </div>
+            <div class="weapon-slot" data-slot="3">
+              <span class="slot-key">3</span>
+              <span class="slot-name">RIFLE</span>
+              <span class="slot-ammo" id="slot-3-ammo">120</span>
+            </div>
+            <div class="weapon-slot" data-slot="4">
+              <span class="slot-key">4</span>
+              <span class="slot-name">PLASMA</span>
+              <span class="slot-ammo" id="slot-4-ammo">60</span>
+            </div>
+            <div class="weapon-slot" data-slot="5">
+              <span class="slot-key">5</span>
+              <span class="slot-name">RPG</span>
+              <span class="slot-ammo" id="slot-5-ammo">8</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ammo, Active Reload & Skills -->
+        <div class="combat-panel">
+          <div class="ammo-display">
+            <div class="ammo-numbers">
+              <span id="cur-clip" class="cur-clip">12</span>
+              <span class="ammo-slash">/</span>
+              <span id="max-clip" class="max-clip">12</span>
+            </div>
+            <div class="ammo-stock">RESERVE: <span id="reserve-ammo">∞</span></div>
+          </div>
+
+          <!-- Active Reload Bar (Gears of War style) -->
+          <div id="active-reload-wrap" class="active-reload-wrap hidden">
+            <div class="reload-track">
+              <div class="reload-sweet-spot"></div>
+              <div id="reload-indicator" class="reload-indicator"></div>
+            </div>
+            <div class="reload-tip">BẤM [R] TRONG VÙNG SÁNG ĐỂ NẠP NHANH & TĂNG SÁT THƯƠNG!</div>
+          </div>
+
+          <!-- Skills Quickbar -->
+          <div class="skills-row">
+            <div class="skill-item" id="skill-grenade">
+              <span class="skill-key">[Q] LỰU ĐẠN</span>
+              <span class="skill-cd" id="cd-grenade">READY</span>
+            </div>
+            <div class="skill-item" id="skill-turret">
+              <span class="skill-key">[E] TRỤ SÚNG</span>
+              <span class="skill-cd" id="cd-turret">READY</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Radar / Minimap -->
+      <div id="minimap-container">
+        <canvas id="minimapCanvas" width="130" height="130"></canvas>
+      </div>
+
+      <!-- Kill Feed / Logs -->
+      <div id="combat-log"></div>
+    </div>
+
+    <!-- Start / Title Overlay -->
+    <div id="start-overlay" class="overlay">
+      <div class="modal title-modal">
+        <h1 class="game-glitch-title" data-text="CYBER SURVIVOR">CYBER SURVIVOR</h1>
+        <p class="subtitle">TOP-DOWN TACTICAL ACTION SHOOTER</p>
+
+        <div class="controls-guide">
+          <div class="guide-col">
+            <h3>PHÍM ĐIỀU KHIỂN CHIẾN ĐẤU (BÀN PHÍM)</h3>
+            <ul>
+              <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> : Di chuyển chiến thuật 8 hướng</li>
+              <li><kbd>SPACE</kbd> : <strong>Dash / Lướt né đòn</strong> (bất tử trong tích tắc)</li>
+              <li><kbd>R</kbd> : <strong>Active Reload</strong> (Bấm trúng vạch để nạp đạn tức thì + tăng dmg)</li>
+              <li><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> <kbd>5</kbd> : Đổi nhanh kho vũ khí</li>
+              <li><kbd>Q</kbd> : Ném lựu đạn nổ chùm (Cluster Grenade)</li>
+              <li><kbd>E</kbd> : Đặt ụ súng máy tự động (Auto-Turret)</li>
+              <li><kbd>SHIFT</kbd> : <strong>Bullet Time</strong> (Làm chậm thời gian Ma Trận)</li>
+            </ul>
+          </div>
+          <div class="guide-col">
+            <h3>CHUỘT & MỤC TIÊU</h3>
+            <ul>
+              <li><span class="mouse-icon">🖱️ Chuột</span> : Ngắm bắn 360 độ</li>
+              <li><span class="mouse-icon">Trái [LMB]</span> : Khai hỏa súng</li>
+              <li><span class="mouse-icon">Phải [RMB]</span> : Chém dao cận chiến đẩy lùi quái</li>
+              <li><span class="mouse-icon">Cuộn chuột</span> : Đổi vũ khí</li>
+            </ul>
+          </div>
+        </div>
+
+        <button id="btn-start" class="btn-cyber">BẮT ĐẦU CHIẾN ĐẤU</button>
+      </div>
+    </div>
+
+    <!-- Upgrade / Perk Selection Overlay -->
+    <div id="upgrade-overlay" class="overlay hidden">
+      <div class="modal upgrade-modal">
+        <h2 class="neon-cyan">NÂNG CẤP CÔNG NGHỆ</h2>
+        <p class="upgrade-desc">Chọn 1 mô-đun tăng cường sức mạnh chiến đấu:</p>
+        <div id="upgrade-cards" class="upgrade-cards-grid">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over Overlay -->
+    <div id="gameover-overlay" class="overlay hidden">
+      <div class="modal gameover-modal">
+        <h1 class="neon-red glitch">MISSION FAILED</h1>
+        <p class="gameover-summary">Bạn đã bị tiêu diệt bởi bầy quái vật mạng!</p>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-title">WAVE ĐẠT ĐƯỢC</span>
+            <span id="final-wave" class="stat-num neon-cyan">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-title">TỔNG ĐIỂM</span>
+            <span id="final-score" class="stat-num neon-gold">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-title">QUÁI ĐÃ HẠ</span>
+            <span id="final-kills" class="stat-num neon-red">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-title">ĐỘ CHÍNH XÁC</span>
+            <span id="final-acc" class="stat-num neon-green">0%</span>
+          </div>
+        </div>
+
+        <button id="btn-restart" class="btn-cyber neon-red-border">TÁI THIẾT LẬP CHIẾN DỊCH [R]</button>
+      </div>
+    </div>
+
+    <!-- Pause Overlay -->
+    <div id="pause-overlay" class="overlay hidden">
+      <div class="modal pause-modal">
+        <h2 class="neon-cyan">TẠM DỪNG TRẬN ĐẤU</h2>
+        <p>Bấm <kbd>ESC</kbd> hoặc <kbd>P</kbd> để tiếp tục chiến đấu.</p>
+        <button id="btn-resume" class="btn-cyber">TIẾP TỤC</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
