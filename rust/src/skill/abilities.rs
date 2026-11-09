@@ -4,10 +4,11 @@ use crate::ally::{
 };
 use crate::core::context::CombatContext;
 use crate::core::events::{
-    CarpetBombingRunEvent, OrbitalLaserStrikeEvent, ShockwaveRingEvent, SupplyPodDropEvent,
+    CarpetBombingRunEvent, OrbitalLaserStrikeEvent, ShockwaveRingEvent, SingularityBlackHoleEvent,
+    SupplyPodDropEvent,
 };
 use crate::core::props::WeaponRarity;
-use crate::core::types::{Particle, PlayerBody};
+use crate::core::types::{Particle, PlayerBody, WORLD_HEIGHT, WORLD_WIDTH};
 use crate::skill::deployables::Deployable;
 use crate::skill::traits::{SkillBehavior, SkillSlot};
 
@@ -271,5 +272,238 @@ pub fn default_skills() -> Vec<SkillSlot> {
         SkillSlot::new(KeyCode::Space, 1.1, Box::new(TacticalDashSkill)),
         SkillSlot::new(KeyCode::Q, 7.5, Box::new(TacticalAirstrikeSkill)),
         SkillSlot::new(KeyCode::E, 14.0, Box::new(ReinforcementsDropSkill)),
+    ]
+}
+
+// =========================================================
+// VOID STALKER SPECIAL SKILLS (Phase Blink & Void Storm)
+// =========================================================
+#[derive(Clone)]
+pub struct PhaseBlinkSkill;
+
+impl SkillBehavior for PhaseBlinkSkill {
+    fn name(&self) -> &'static str {
+        "PHASE BLINK"
+    }
+
+    fn key_label(&self) -> &'static str {
+        "SPACE"
+    }
+
+    fn activate(
+        &mut self,
+        player: &mut PlayerBody,
+        aim_world: Vec2,
+        move_dir: Vec2,
+        ctx: &mut CombatContext,
+    ) -> bool {
+        let old_pos = player.pos;
+        let blink_dir = if move_dir != Vec2::ZERO {
+            move_dir.normalize()
+        } else {
+            (aim_world - player.pos).normalize_or_zero()
+        };
+        let target = (player.pos + blink_dir * 235.0).clamp(
+            vec2(player.radius, player.radius),
+            vec2(WORLD_WIDTH - player.radius, WORLD_HEIGHT - player.radius),
+        );
+
+        // Để lại Hố Đen Không Gian nhỏ tại điểm biến mất
+        ctx.spawn_event(Box::new(SingularityBlackHoleEvent {
+            pos: old_pos,
+            pull_radius: 175.0,
+            pull_force: 320.0,
+            dps: 85.0,
+            duration: 1.5,
+            max_duration: 1.5,
+            rotation: 0.0,
+        }));
+
+        player.pos = target;
+        player.is_dashing = true;
+        player.dash_duration = 0.16;
+        player.vel = Vec2::ZERO;
+
+        ctx.spawn_event(Box::new(ShockwaveRingEvent {
+            center: target,
+            current_radius: 10.0,
+            max_radius: 110.0,
+            speed: 560.0,
+            color: Color::new(0.75, 0.25, 1.0, 0.9),
+            thickness: 4.5,
+        }));
+        true
+    }
+
+    fn clone_box(&self) -> Box<dyn SkillBehavior> {
+        Box::new(self.clone())
+    }
+}
+
+#[derive(Clone)]
+pub struct VoidTempestSkill;
+
+impl SkillBehavior for VoidTempestSkill {
+    fn name(&self) -> &'static str {
+        "VOID TEMPEST"
+    }
+
+    fn key_label(&self) -> &'static str {
+        "Q"
+    }
+
+    fn activate(
+        &mut self,
+        player: &mut PlayerBody,
+        aim_world: Vec2,
+        _move_dir: Vec2,
+        ctx: &mut CombatContext,
+    ) -> bool {
+        // Phóng 6 luồng sét không gian tỏa 360 độ quanh nhân vật
+        for i in 0..6 {
+            let a = (i as f32) * std::f32::consts::PI / 3.0;
+            let dir = vec2(a.cos(), a.sin());
+            ctx.chain_lightning(player.pos, dir, 5, 340.0, 95.0);
+        }
+
+        // Kèm 1 Hố Đen Vũ Trụ ngay tại tâm con trỏ chuột
+        ctx.spawn_event(Box::new(SingularityBlackHoleEvent {
+            pos: aim_world,
+            pull_radius: 280.0,
+            pull_force: 400.0,
+            dps: 120.0,
+            duration: 3.2,
+            max_duration: 3.2,
+            rotation: 0.0,
+        }));
+
+        ctx.spawn_float_text(
+            player.pos - vec2(0.0, 40.0),
+            "VOID SINGULARITY TEMPEST!",
+            Color::new(0.8, 0.3, 1.0, 1.0),
+            22.0,
+        );
+        true
+    }
+
+    fn clone_box(&self) -> Box<dyn SkillBehavior> {
+        Box::new(self.clone())
+    }
+}
+
+// =========================================================
+// TECH ENGINEER SPECIAL SKILLS (Mecha Legion Drop)
+// =========================================================
+#[derive(Clone)]
+pub struct MechaLegionDropSkill;
+
+impl SkillBehavior for MechaLegionDropSkill {
+    fn name(&self) -> &'static str {
+        "MECHA LEGION"
+    }
+
+    fn key_label(&self) -> &'static str {
+        "E"
+    }
+
+    fn activate(
+        &mut self,
+        player: &mut PlayerBody,
+        aim_world: Vec2,
+        _move_dir: Vec2,
+        ctx: &mut CombatContext,
+    ) -> bool {
+        // Triển khai cùng lúc 2 Đại Robot Heavy Mech!
+        for offset in [vec2(-55.0, 0.0), vec2(55.0, 0.0)] {
+            ctx.spawn_ally(AlliedEntity::new(
+                AlliedBody {
+                    name: "TITAN MECH",
+                    pos: player.pos + offset,
+                    vel: Vec2::ZERO,
+                    angle: player.angle,
+                    radius: 23.0,
+                    speed: 205.0,
+                    color: Color::new(1.0, 0.78, 0.15, 1.0),
+                    hp: 520.0,
+                    max_hp: 520.0,
+                    life: 38.0,
+                },
+                Box::new(AlliedHeavyMech {
+                    fire_timer: 0.0,
+                    rocket_timer: 0.2,
+                }),
+            ));
+        }
+
+        // Triển khai 2 Drone Hộ Vệ xoay quanh
+        for i in 0..2 {
+            ctx.spawn_ally(AlliedEntity::new(
+                AlliedBody {
+                    name: "AEGIS DRONE",
+                    pos: player.pos,
+                    vel: Vec2::ZERO,
+                    angle: 0.0,
+                    radius: 9.5,
+                    speed: 320.0,
+                    color: Color::new(0.0, 0.95, 1.0, 1.0),
+                    hp: 130.0,
+                    max_hp: 130.0,
+                    life: 40.0,
+                },
+                Box::new(OrbitingCombatDrone {
+                    orbit_angle: (i as f32) * std::f32::consts::PI,
+                    orbit_radius: 62.0,
+                    fire_timer: 0.0,
+                }),
+            ));
+        }
+
+        // Đặt 2 Trụ Súng Ép Xung
+        for offset in [vec2(0.0, -48.0), vec2(0.0, 48.0)] {
+            ctx.spawn_deployable(Deployable::AutoTurret {
+                pos: player.pos + offset,
+                angle: player.angle,
+                fire_timer: 0.0,
+                fire_interval: 0.12,
+                life: 32.0,
+            });
+        }
+
+        // Thả 1 Khoang Tiếp Tế Súng Epic/Legendary
+        ctx.spawn_event(Box::new(SupplyPodDropEvent {
+            landing_pos: aim_world,
+            timer: 0.0,
+            max_time: 0.95,
+            weapon_id: rand::gen_range(2, 7),
+            rarity: WeaponRarity::Epic,
+        }));
+
+        ctx.spawn_float_text(
+            player.pos - vec2(0.0, 40.0),
+            "MECHA LEGION & TURRET MATRIX DEPLOYED!",
+            Color::new(1.0, 0.85, 0.1, 1.0),
+            22.0,
+        );
+        true
+    }
+
+    fn clone_box(&self) -> Box<dyn SkillBehavior> {
+        Box::new(self.clone())
+    }
+}
+
+pub fn void_stalker_skills() -> Vec<SkillSlot> {
+    vec![
+        SkillSlot::new(KeyCode::Space, 0.9, Box::new(PhaseBlinkSkill)),
+        SkillSlot::new(KeyCode::Q, 6.5, Box::new(VoidTempestSkill)),
+        SkillSlot::new(KeyCode::E, 13.0, Box::new(ReinforcementsDropSkill)),
+    ]
+}
+
+pub fn tech_engineer_skills() -> Vec<SkillSlot> {
+    vec![
+        SkillSlot::new(KeyCode::Space, 1.1, Box::new(TacticalDashSkill)),
+        SkillSlot::new(KeyCode::Q, 7.0, Box::new(TacticalAirstrikeSkill)),
+        SkillSlot::new(KeyCode::E, 12.0, Box::new(MechaLegionDropSkill)),
     ]
 }

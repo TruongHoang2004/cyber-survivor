@@ -18,6 +18,19 @@ pub fn weapon_name_by_id(id: usize) -> &'static str {
     }
 }
 
+pub fn evolved_weapon_name_by_id(id: usize) -> &'static str {
+    match id {
+        0 => "MAGNUM [EVO]",
+        1 => "DRAGON FLAK [EVO]",
+        2 => "HYPER-VULCAN [EVO]",
+        3 => "THUNDER TESLA [EVO]",
+        4 => "TRIPLE RAIL [EVO]",
+        5 => "SUPERNOVA [EVO]",
+        6 => "MIRV RPG [EVO]",
+        _ => "AWAKENED WEAPON",
+    }
+}
+
 fn resolve_status(mods: &PlayerModifiers) -> Option<StatusEffect> {
     if mods.incendiary_rounds {
         Some(StatusEffect::Burn {
@@ -72,13 +85,21 @@ impl WeaponBehavior for StandardBallisticBehavior {
         overcharged: bool,
         ctx: &mut CombatContext,
     ) {
-        let streams = if stats.level >= 3 { 2 } else { 1 };
+        let streams = if stats.level >= 3 {
+            3
+        } else if stats.level == 2 {
+            2
+        } else {
+            1
+        };
         let dmg = calc_damage(stats, mods, overcharged);
         let col = bullet_color(stats, mods, overcharged);
+        let evo_pierce = if stats.level >= 3 { 1 } else { 0 };
+        let evo_bounce = if stats.level >= 3 { 1 } else { 0 };
 
         for s in 0..streams {
             let offset_angle = if streams > 1 {
-                ((s as f32) - 0.5) * 0.06
+                ((s as f32) - ((streams - 1) as f32) * 0.5) * 0.055
             } else {
                 0.0
             };
@@ -89,11 +110,11 @@ impl WeaponBehavior for StandardBallisticBehavior {
                 vel: dir * stats.speed,
                 damage: dmg,
                 color: col,
-                radius: 3.8,
+                radius: if stats.level >= 3 { 4.4 } else { 3.8 },
                 explosion_radius: None,
                 spawns_black_hole: false,
-                pierce: mods.pierce_count,
-                bounces: if mods.bouncing_bullets { 2 } else { 0 },
+                pierce: mods.pierce_count + evo_pierce,
+                bounces: (if mods.bouncing_bullets { 2 } else { 0 }) + evo_bounce,
                 life: 2.2,
                 status_effect: resolve_status(mods),
             });
@@ -106,7 +127,7 @@ impl WeaponBehavior for StandardBallisticBehavior {
 }
 
 // =========================================================
-// 2. BUCKSHOT SPREAD BEHAVIOR (Shotgun)
+// 2. BUCKSHOT SPREAD BEHAVIOR (Shotgun -> Dragon Flak)
 // =========================================================
 #[derive(Clone)]
 pub struct BuckshotSpreadBehavior {
@@ -123,25 +144,38 @@ impl WeaponBehavior for BuckshotSpreadBehavior {
         overcharged: bool,
         ctx: &mut CombatContext,
     ) {
-        let pellets = self.base_pellets + (stats.level.saturating_sub(1)) * 2;
+        let pellets = self.base_pellets + (stats.level.saturating_sub(1)) * 3;
         let dmg = calc_damage(stats, mods, overcharged);
-        let col = bullet_color(stats, mods, overcharged);
+        let is_evolved = stats.level >= 3;
+        let col = if is_evolved {
+            Color::new(1.0, 0.38, 0.05, 1.0)
+        } else {
+            bullet_color(stats, mods, overcharged)
+        };
+        let status = if is_evolved {
+            Some(StatusEffect::Burn {
+                dps: 30.0,
+                duration: 3.0,
+            })
+        } else {
+            resolve_status(mods)
+        };
 
         for _ in 0..pellets {
             let angle = aim_angle + rand::gen_range(-stats.spread, stats.spread);
             let dir = vec2(angle.cos(), angle.sin());
             ctx.spawn_player_projectile(Projectile {
                 pos: origin + dir * 24.0,
-                vel: dir * stats.speed * rand::gen_range(0.9, 1.1),
+                vel: dir * stats.speed * rand::gen_range(0.9, 1.12),
                 damage: dmg,
                 color: col,
-                radius: 3.2,
+                radius: if is_evolved { 4.2 } else { 3.2 },
                 explosion_radius: None,
                 spawns_black_hole: false,
-                pierce: mods.pierce_count,
+                pierce: mods.pierce_count + (if is_evolved { 1 } else { 0 }),
                 bounces: if mods.bouncing_bullets { 2 } else { 0 },
-                life: 1.3,
-                status_effect: resolve_status(mods),
+                life: 1.35,
+                status_effect: status,
             });
         }
     }
@@ -152,7 +186,7 @@ impl WeaponBehavior for BuckshotSpreadBehavior {
 }
 
 // =========================================================
-// 3. TESLA CHAIN-LIGHTNING BEHAVIOR (Sét Liên Hoàn)
+// 3. TESLA CHAIN-LIGHTNING BEHAVIOR (Sét Liên Hoàn -> Bão Sét)
 // =========================================================
 #[derive(Clone)]
 pub struct TeslaChainBehavior {
@@ -169,10 +203,19 @@ impl WeaponBehavior for TeslaChainBehavior {
         overcharged: bool,
         ctx: &mut CombatContext,
     ) {
-        let dir = vec2(aim_angle.cos(), aim_angle.sin());
         let jumps = self.base_jumps + ((stats.level as usize).saturating_sub(1)) * 3;
         let dmg = calc_damage(stats, mods, overcharged);
-        ctx.chain_lightning(origin + dir * 20.0, dir, jumps, 320.0, dmg);
+        if stats.level >= 3 {
+            // Tiến hóa Lv.3+: Phóng 2 luồng hồ quang điện song song!
+            for offset in [-0.14f32, 0.14f32] {
+                let a = aim_angle + offset;
+                let dir = vec2(a.cos(), a.sin());
+                ctx.chain_lightning(origin + dir * 20.0, dir, jumps, 360.0, dmg * 0.85);
+            }
+        } else {
+            let dir = vec2(aim_angle.cos(), aim_angle.sin());
+            ctx.chain_lightning(origin + dir * 20.0, dir, jumps, 320.0, dmg);
+        }
     }
 
     fn clone_box(&self) -> Box<dyn WeaponBehavior> {
@@ -197,11 +240,22 @@ impl WeaponBehavior for RailgunBeamBehavior {
         ctx: &mut CombatContext,
     ) {
         let dir = vec2(aim_angle.cos(), aim_angle.sin());
-        let start = origin + dir * 22.0;
-        let end = origin + dir * 1500.0;
+        let perp = vec2(-dir.y, dir.x);
         let dmg = calc_damage(stats, mods, overcharged);
         let width = 26.0 + (stats.level as f32) * 4.0;
-        ctx.railgun_strike(start, end, width, dmg);
+
+        if stats.level >= 3 {
+            // Tiến hóa Lv.3+: Bắn 3 tia Railgun song song quét sạch hành lang!
+            for side in [-1.0f32, 0.0, 1.0] {
+                let start = origin + dir * 22.0 + perp * (side * 24.0);
+                let end = start + dir * 1500.0;
+                ctx.railgun_strike(start, end, width * 0.85, dmg * 0.75);
+            }
+        } else {
+            let start = origin + dir * 22.0;
+            let end = origin + dir * 1500.0;
+            ctx.railgun_strike(start, end, width, dmg);
+        }
     }
 
     fn clone_box(&self) -> Box<dyn WeaponBehavior> {
@@ -210,7 +264,7 @@ impl WeaponBehavior for RailgunBeamBehavior {
 }
 
 // =========================================================
-// 5. SINGULARITY CANNON BEHAVIOR (Súng Hố Đen)
+// 5. SINGULARITY CANNON BEHAVIOR (Súng Hố Đen -> Supernova)
 // =========================================================
 #[derive(Clone)]
 pub struct SingularityCannonBehavior;
@@ -232,8 +286,8 @@ impl WeaponBehavior for SingularityCannonBehavior {
             vel: dir * stats.speed,
             damage: dmg,
             color: Color::new(0.75, 0.2, 1.0, 1.0),
-            radius: 10.0,
-            explosion_radius: Some(120.0),
+            radius: if stats.level >= 3 { 13.0 } else { 10.0 },
+            explosion_radius: Some(140.0),
             spawns_black_hole: true,
             pierce: 0,
             bounces: 0,
@@ -248,7 +302,7 @@ impl WeaponBehavior for SingularityCannonBehavior {
 }
 
 // =========================================================
-// 6. EXPLOSIVE ROCKET BEHAVIOR (RPG)
+// 6. EXPLOSIVE ROCKET BEHAVIOR (RPG -> MIRV Launcher)
 // =========================================================
 #[derive(Clone)]
 pub struct ExplosiveRocketBehavior {
@@ -265,21 +319,33 @@ impl WeaponBehavior for ExplosiveRocketBehavior {
         overcharged: bool,
         ctx: &mut CombatContext,
     ) {
-        let angle = aim_angle + rand::gen_range(-stats.spread, stats.spread);
-        let dir = vec2(angle.cos(), angle.sin());
-        ctx.spawn_player_projectile(Projectile {
-            pos: origin + dir * 24.0,
-            vel: dir * stats.speed,
-            damage: calc_damage(stats, mods, overcharged),
-            color: bullet_color(stats, mods, overcharged),
-            radius: 8.0,
-            explosion_radius: Some(self.blast_radius + (stats.level as f32) * 15.0),
-            spawns_black_hole: false,
-            pierce: 0,
-            bounces: 0,
-            life: 2.5,
-            status_effect: resolve_status(mods),
-        });
+        let rockets = if stats.level >= 3 { 2 } else { 1 };
+        let dmg = calc_damage(stats, mods, overcharged);
+        let col = bullet_color(stats, mods, overcharged);
+
+        for r in 0..rockets {
+            let spread_offset = if rockets > 1 {
+                ((r as f32) - 0.5) * 0.10
+            } else {
+                0.0
+            };
+            let angle =
+                aim_angle + spread_offset + rand::gen_range(-stats.spread, stats.spread);
+            let dir = vec2(angle.cos(), angle.sin());
+            ctx.spawn_player_projectile(Projectile {
+                pos: origin + dir * 24.0,
+                vel: dir * stats.speed,
+                damage: dmg,
+                color: col,
+                radius: 8.0,
+                explosion_radius: Some(self.blast_radius + (stats.level as f32) * 18.0),
+                spawns_black_hole: false,
+                pierce: 0,
+                bounces: 0,
+                life: 2.5,
+                status_effect: resolve_status(mods),
+            });
+        }
     }
 
     fn clone_box(&self) -> Box<dyn WeaponBehavior> {

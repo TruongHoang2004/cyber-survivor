@@ -40,6 +40,11 @@ impl Player {
         }
     }
 
+    pub fn set_class(&mut self, class: Box<dyn CharacterClass>, start_pos: Vec2) {
+        self.class = class;
+        self.reset(start_pos);
+    }
+
     pub fn reset(&mut self, start_pos: Vec2) {
         self.body = self.class.initial_body(start_pos);
         self.weapons = self.class.starting_weapons();

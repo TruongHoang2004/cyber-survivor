@@ -1,6 +1,87 @@
 use macroquad::prelude::*;
+use crate::ally::AlliedEntity;
 use crate::character::player::Player;
-use crate::core::types::GameSettings;
+use crate::core::props::WeaponDrop;
+use crate::core::structures::TacticalStructureEntity;
+use crate::core::types::{GameSettings, WORLD_HEIGHT, WORLD_WIDTH};
+use crate::enemy::traits::EnemyEntity;
+
+/// Vẽ Bản đồ nhỏ chiến thuật (Tactical Radar Minimap) ở góc trên bên phải
+pub fn draw_minimap(
+    player_pos: Vec2,
+    enemies: &[EnemyEntity],
+    allies: &[AlliedEntity],
+    structures: &[TacticalStructureEntity],
+    weapon_drops: &[WeaponDrop],
+) {
+    let map_sz = 142.0;
+    let mx = screen_width() - map_sz - 20.0;
+    let my = 80.0;
+
+    draw_rectangle(mx, my, map_sz, map_sz, Color::new(0.03, 0.05, 0.09, 0.88));
+    draw_rectangle_lines(mx, my, map_sz, map_sz, 1.5, Color::new(0.0, 0.9, 1.0, 0.55));
+
+    // Đường chữ thập tọa độ tâm Radar
+    draw_line(
+        mx + map_sz / 2.0,
+        my,
+        mx + map_sz / 2.0,
+        my + map_sz,
+        1.0,
+        Color::new(0.0, 0.8, 1.0, 0.12),
+    );
+    draw_line(
+        mx,
+        my + map_sz / 2.0,
+        mx + map_sz,
+        my + map_sz / 2.0,
+        1.0,
+        Color::new(0.0, 0.8, 1.0, 0.12),
+    );
+
+    let to_map = |p: Vec2| -> Vec2 {
+        vec2(
+            mx + (p.x / WORLD_WIDTH).clamp(0.0, 1.0) * map_sz,
+            my + (p.y / WORLD_HEIGHT).clamp(0.0, 1.0) * map_sz,
+        )
+    };
+
+    // 1. Công trình / Trạm Radar (Hình vuông xanh/vàng)
+    for st in structures {
+        let mp = to_map(st.body.pos);
+        draw_rectangle(mp.x - 3.0, mp.y - 3.0, 6.0, 6.0, st.body.color);
+    }
+
+    // 2. Vũ khí rơi dưới đất (Chấm sáng theo độ hiếm)
+    for wd in weapon_drops {
+        let mp = to_map(wd.pos);
+        draw_circle(mp.x, mp.y, 2.8, wd.rarity.color());
+    }
+
+    // 3. Đồng minh (Chấm xanh lục)
+    for a in allies {
+        let mp = to_map(a.body.pos);
+        draw_circle(mp.x, mp.y, 2.2, Color::new(0.2, 1.0, 0.6, 0.95));
+    }
+
+    // 4. Quái vật & Boss
+    for e in enemies {
+        let mp = to_map(e.body.pos);
+        if e.body.is_boss {
+            draw_circle(mp.x, mp.y, 5.0, Color::new(1.0, 0.1, 0.35, 1.0));
+            draw_circle_lines(mp.x, mp.y, 7.0, 1.2, WHITE);
+        } else {
+            draw_circle(mp.x, mp.y, 1.8, Color::new(1.0, 0.25, 0.3, 0.85));
+        }
+    }
+
+    // 5. Người chơi (Chấm tròn trắng viền Cyan)
+    let pp = to_map(player_pos);
+    draw_circle(pp.x, pp.y, 3.6, Color::new(0.0, 0.95, 1.0, 1.0));
+    draw_circle_lines(pp.x, pp.y, 5.2, 1.2, WHITE);
+
+    draw_text("RADAR", mx + 6.0, my + 13.0, 11.0, Color::new(0.0, 0.94, 1.0, 0.8));
+}
 
 /// Vẽ HUD và trả về `true` nếu người chơi bấm vào nút [CÀI ĐẶT / MENU] trên góc phải màn hình
 pub fn draw_hud(

@@ -2,31 +2,40 @@ use macroquad::prelude::*;
 use std::f32::consts::PI;
 
 use crate::ally::{AlliedBody, AlliedEntity, AlliedMarine};
-use crate::character::classes::CyberMarine;
+use crate::character::classes::{create_class_by_id, CyberMarine};
 use crate::character::player::Player;
+use crate::core::audio::SoundBank;
 use crate::core::context::{CombatContext, WorldCommand};
 use crate::core::events::{
     BattlefieldEvent, BeamArcVisualEvent, ShockwaveRingEvent, SingularityBlackHoleEvent,
     SupplyPodDropEvent,
 };
 use crate::core::props::{ExplosiveBarrel, WeaponDrop, WeaponRarity};
+use crate::core::structures::{
+    EnergyBarricadeStructure, NanoRepairPylonStructure, RadarOutpostStructure, StructureBody,
+    TacticalStructureEntity,
+};
 use crate::core::types::*;
 use crate::enemy::spawner::EnemyFactory;
 use crate::enemy::traits::EnemyEntity;
 use crate::skill::deployables::Deployable;
-use crate::ui::hud::draw_hud;
+use crate::ui::hud::{draw_hud, draw_minimap};
 use crate::ui::menus::*;
+use crate::weapon::arsenal::evolved_weapon_name_by_id;
 use crate::weapon::projectile::Projectile;
 
 pub struct GameWorld {
     pub state: GameState,
     pub settings: GameSettings,
     pub settings_open: bool,
+    pub selected_class_id: usize,
+    pub sound_bank: SoundBank,
     pub player: Player,
     pub player_projectiles: Vec<Projectile>,
     pub enemy_projectiles: Vec<Projectile>,
     pub enemies: Vec<EnemyEntity>,
     pub allies: Vec<AlliedEntity>,
+    pub structures: Vec<TacticalStructureEntity>,
     pub deployables: Vec<Deployable>,
     pub events: Vec<Box<dyn BattlefieldEvent>>,
     pub weapon_drops: Vec<WeaponDrop>,
@@ -52,18 +61,23 @@ pub struct GameWorld {
 }
 
 impl GameWorld {
-    pub fn new() -> Self {
+    pub async fn new() -> Self {
         let start_pos = vec2(WORLD_WIDTH / 2.0, WORLD_HEIGHT / 2.0);
         let player = Player::new(Box::new(CyberMarine), start_pos);
+        let sound_bank = SoundBank::new().await;
+        let settings = GameSettings::load_or_default();
         let mut world = Self {
             state: GameState::Start,
-            settings: GameSettings::default(),
+            settings,
             settings_open: false,
+            selected_class_id: 0,
+            sound_bank,
             player,
             player_projectiles: Vec::new(),
             enemy_projectiles: Vec::new(),
             enemies: Vec::new(),
             allies: Vec::new(),
+            structures: Vec::new(),
             deployables: Vec::new(),
             events: Vec::new(),
             weapon_drops: Vec::new(),
@@ -154,6 +168,68 @@ impl GameWorld {
                 self.barrels.push(ExplosiveBarrel::new(vec2(bx, by)));
             }
         }
+
+        // 4. Khởi tạo các Công Trình & Cứ Điểm Chiến Thuật (BattlefieldStructure)
+        if self.structures.is_empty() {
+            // 2 Trạm Radar Chiếm Đóng ở hai cánh chiến trường
+            for offset in [vec2(-460.0, -320.0), vec2(460.0, 320.0)] {
+                self.structures.push(TacticalStructureEntity::new(
+                    StructureBody {
+                        name: "RADAR OUTPOST",
+                        pos: center + offset,
+                        radius: 26.0,
+                        hp: 650.0,
+                        max_hp: 650.0,
+                        color: Color::new(0.0, 0.94, 1.0, 1.0),
+                    },
+                    Box::new(RadarOutpostStructure {
+                        capture_radius: 130.0,
+                        progress: 0.0,
+                        captured: false,
+                        strike_timer: 0.0,
+                        radar_angle: 0.0,
+                    }),
+                ));
+            }
+
+            // 4 Lô Cốt Chắn Đạn Năng Lượng quanh khu vực trung tâm
+            for offset in [
+                vec2(-230.0, -180.0),
+                vec2(230.0, -180.0),
+                vec2(-230.0, 180.0),
+                vec2(230.0, 180.0),
+            ] {
+                self.structures.push(TacticalStructureEntity::new(
+                    StructureBody {
+                        name: "ENERGY BUNKER",
+                        pos: center + offset,
+                        radius: 24.0,
+                        hp: 500.0,
+                        max_hp: 500.0,
+                        color: Color::new(0.15, 0.85, 1.0, 1.0),
+                    },
+                    Box::new(EnergyBarricadeStructure { pulse: 0.0 }),
+                ));
+            }
+
+            // 2 Trụ Hồi Phục Nano (Nano Repair Pylon)
+            for offset in [vec2(0.0, -340.0), vec2(0.0, 340.0)] {
+                self.structures.push(TacticalStructureEntity::new(
+                    StructureBody {
+                        name: "NANO REPAIR PYLON",
+                        pos: center + offset,
+                        radius: 20.0,
+                        hp: 450.0,
+                        max_hp: 450.0,
+                        color: Color::new(0.1, 1.0, 0.55, 1.0),
+                    },
+                    Box::new(NanoRepairPylonStructure {
+                        aura_radius: 120.0,
+                        pulse: 0.0,
+                    }),
+                ));
+            }
+        }
     }
 
     pub fn reset(&mut self) {
@@ -163,6 +239,7 @@ impl GameWorld {
         self.enemy_projectiles.clear();
         self.enemies.clear();
         self.allies.clear();
+        self.structures.clear();
         self.deployables.clear();
         self.events.clear();
         self.weapon_drops.clear();
@@ -229,6 +306,7 @@ impl GameWorld {
                     radius,
                     damage,
                 } => {
+                    self.sound_bank.play_explosion(self.settings.master_volume);
                     self.add_screen_shake(7.0);
                     self.decals.push(Decal {
                         pos,
@@ -491,10 +569,17 @@ impl GameWorld {
         match self.state {
             GameState::Start => {
                 match draw_start_menu(
+                    self.selected_class_id,
                     self.player.class.name(),
                     self.player.class.description(),
                     &self.settings,
                 ) {
+                    StartMenuAction::SelectClass(cid) => {
+                        self.selected_class_id = cid;
+                        let start_pos = vec2(WORLD_WIDTH / 2.0, WORLD_HEIGHT / 2.0);
+                        self.player.set_class(create_class_by_id(cid), start_pos);
+                        self.sound_bank.play_powerup(self.settings.master_volume);
+                    }
                     StartMenuAction::StartGame => {
                         self.enemies_to_spawn =
                             (45.0 * self.settings.swarm_scale).round() as u32;
@@ -735,6 +820,13 @@ impl GameWorld {
         self.allies.retain_mut(|a| a.tick(&mut ally_ctx, sim_dt));
         self.flush_commands(ally_ctx.commands);
 
+        // Update Tactical Battlefield Structures (Trait BattlefieldStructure)
+        let mut st_ctx = self.make_context();
+        let mut active_structures = std::mem::take(&mut self.structures);
+        active_structures.retain_mut(|st| st.tick(&mut self.player.body, &mut st_ctx, sim_dt));
+        self.structures.append(&mut active_structures);
+        self.flush_commands(st_ctx.commands);
+
         // Update Deployables
         let mut dep_ctx = self.make_context();
         self.deployables
@@ -884,12 +976,25 @@ impl GameWorld {
         self.update_weapon_drops(dt);
         self.update_pickups(dt);
 
-        // Update Enemy Projectiles
+        // Update Enemy Projectiles (Including Energy Barricade Bunker Interception!)
         let mut hit_shake = 0.0;
         for eb in self.enemy_projectiles.iter_mut() {
             eb.pos += eb.vel * sim_dt;
             eb.life -= sim_dt;
-            if (eb.pos - self.player.body.pos).length() < eb.radius + self.player.body.radius
+
+            for st in self.structures.iter_mut() {
+                if st.behavior.blocks_enemy_projectiles()
+                    && (eb.pos - st.body.pos).length() < eb.radius + st.body.radius
+                    && eb.life > 0.0
+                {
+                    st.body.hp -= eb.damage * 0.5;
+                    eb.life = 0.0;
+                    break;
+                }
+            }
+
+            if eb.life > 0.0
+                && (eb.pos - self.player.body.pos).length() < eb.radius + self.player.body.radius
                 && !self.player.body.is_dashing
             {
                 hit_shake += self.player.take_damage(eb.damage);
@@ -945,7 +1050,12 @@ impl GameWorld {
             self.current_upgrade_choices = get_random_upgrades();
         }
 
+        if self.score > self.settings.high_score {
+            self.settings.high_score = self.score;
+        }
+
         if self.player.body.hp <= 0.0 {
+            self.settings.save_to_disk();
             self.state = GameState::GameOver;
         }
 
@@ -965,6 +1075,7 @@ impl GameWorld {
                 (self.settings.auto_pickup_weapons && dist < 34.0) || (dist < 95.0 && press_f);
 
             if should_pickup {
+                self.sound_bank.play_powerup(self.settings.master_volume);
                 let drop = self.weapon_drops.swap_remove(i);
                 if drop.weapon_id < self.player.weapons.len() {
                     let w = &mut self.player.weapons[drop.weapon_id];
@@ -973,7 +1084,11 @@ impl GameWorld {
                     if was_unlocked {
                         w.stats.level += 1;
                     }
-                    if drop.rarity > w.stats.rarity {
+                    let just_evolved = was_unlocked && w.stats.level == 3;
+                    if w.stats.level >= 3 {
+                        w.stats.name = evolved_weapon_name_by_id(drop.weapon_id);
+                        w.stats.rarity = WeaponRarity::Legendary;
+                    } else if drop.rarity > w.stats.rarity {
                         w.stats.rarity = drop.rarity;
                     }
                     w.stats.current_clip = w.stats.clip_size;
@@ -992,14 +1107,20 @@ impl GameWorld {
 
                     self.float_texts.push(FloatText {
                         pos: p_pos - vec2(0.0, 35.0),
-                        text: if !was_unlocked {
+                        text: if just_evolved {
+                            format!("WEAPON EVOLVED: {} Lv.{}!", w_name, w_lvl)
+                        } else if !was_unlocked {
                             format!("UNLOCKED: {} [{}]!", w_name, drop.rarity.label())
                         } else {
                             format!("UPGRADED: {} Lv.{}!", w_name, w_lvl)
                         },
-                        color: w_col,
-                        size: 22.0,
-                        life: 1.4,
+                        color: if just_evolved {
+                            Color::new(1.0, 0.85, 0.1, 1.0)
+                        } else {
+                            w_col
+                        },
+                        size: if just_evolved { 25.0 } else { 22.0 },
+                        life: 1.5,
                     });
                 }
             } else {
@@ -1145,6 +1266,8 @@ impl GameWorld {
 
             self.player.fire_timer = fire_rate;
             self.add_screen_shake(shake * 0.5);
+            self.sound_bank
+                .play_weapon_fire(self.player.current_weapon_idx, self.settings.master_volume);
             self.shots_fired += 1;
 
             self.casings.push(Casing {
@@ -1359,6 +1482,11 @@ impl GameWorld {
             b.draw(cam_offset);
         }
 
+        // Tactical Battlefield Structures (Radar Outposts, Energy Bunkers, Repair Pylons)
+        for st in &self.structures {
+            st.draw(cam_offset);
+        }
+
         // Weapon Drops (Ground Loot with Hologram Beams)
         for wd in &self.weapon_drops {
             wd.draw(cam_offset, self.player.body.pos);
@@ -1457,6 +1585,16 @@ impl GameWorld {
             .iter()
             .find(|e| e.body.is_boss)
             .map(|b| (b.body.name, b.body.hp, b.body.max_hp, b.body.parts.len()));
+
+        if self.settings.show_minimap {
+            draw_minimap(
+                self.player.body.pos,
+                &self.enemies,
+                &self.allies,
+                &self.structures,
+                &self.weapon_drops,
+            );
+        }
 
         draw_hud(
             &self.player,

@@ -22,7 +22,7 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut world = GameWorld::new();
+    let mut world = GameWorld::new().await;
 
     loop {
         let dt = get_frame_time().min(0.05);

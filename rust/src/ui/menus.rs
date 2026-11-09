@@ -4,6 +4,7 @@ use crate::core::types::{GameSettings, UpgradeOption};
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum StartMenuAction {
     None,
+    SelectClass(usize),
     StartGame,
     OpenSettings,
 }
@@ -247,8 +248,9 @@ fn draw_toggle_row(
     }
 }
 
-/// Màn hình chính (Start Menu) với nút vào Trận và nút Cài đặt
+/// Màn hình chính (Start Menu) với Chọn Nhân Vật (3 Classes), vào Trận và Cài đặt
 pub fn draw_start_menu(
+    selected_class_id: usize,
     class_name: &str,
     class_desc: &str,
     settings: &GameSettings,
@@ -272,39 +274,116 @@ pub fn draw_start_menu(
     let cy = screen_height() / 2.0;
 
     // Khung chính
-    let panel_w = 880.0;
-    let panel_h = 540.0;
+    let panel_w = 920.0;
+    let panel_h = 610.0;
     let px = cx - panel_w / 2.0;
     let py = cy - panel_h / 2.0;
 
     draw_rectangle(px, py, panel_w, panel_h, Color::new(0.05, 0.07, 0.12, 0.95));
     draw_rectangle_lines(px, py, panel_w, panel_h, 2.0, Color::new(0.0, 0.9, 1.0, 0.7));
 
-    // Tiêu đề
+    // Tiêu đề & High Score
     draw_text(
         "CYBER SURVIVOR: GRAND BATTLE",
-        px + 36.0,
-        py + 56.0,
-        42.0,
+        px + 34.0,
+        py + 48.0,
+        38.0,
         Color::new(0.0, 0.95, 1.0, 1.0),
     );
     draw_text(
-        &format!("CHUYEN GIA: {} — {}", class_name, class_desc),
-        px + 36.0,
-        py + 88.0,
-        17.0,
-        Color::new(0.75, 0.88, 1.0, 1.0),
+        &format!("KY LUC (HIGH SCORE): {}", settings.high_score),
+        px + panel_w - 310.0,
+        py + 46.0,
+        20.0,
+        Color::new(1.0, 0.85, 0.1, 1.0),
+    );
+    draw_text(
+        &format!("DANG CHON: {} — {}", class_name, class_desc),
+        px + 34.0,
+        py + 78.0,
+        16.0,
+        Color::new(0.75, 0.9, 1.0, 1.0),
     );
 
+    // Hàng chọn 3 Lớp Nhân Vật (CharacterClass)
+    let classes = [
+        (
+            0usize,
+            "[1] CYBER MARINE",
+            "HP 110 | Shield 60 | Khong Kich & Linh Thuy Quan",
+            Color::new(0.0, 0.95, 1.0, 1.0),
+        ),
+        (
+            1usize,
+            "[2] VOID STALKER",
+            "+25% DMG | Phase Blink Tao Ho Den & Bao Set 360",
+            Color::new(0.8, 0.35, 1.0, 1.0),
+        ),
+        (
+            2usize,
+            "[3] TECH ENGINEER",
+            "HP 125 | Shield 100 | Goi 2 Dai Robot Titan Mech",
+            Color::new(1.0, 0.8, 0.15, 1.0),
+        ),
+    ];
+
+    let card_w = (panel_w - 68.0 - 28.0) / 3.0;
+    let card_y = py + 95.0;
+    let card_h = 74.0;
+    let (mx, my) = mouse_position();
+
+    for (idx, title, sub, col) in classes {
+        let card_x = px + 34.0 + (idx as f32) * (card_w + 14.0);
+        let is_sel = selected_class_id == idx;
+        let hover = mx >= card_x && mx <= card_x + card_w && my >= card_y && my <= card_y + card_h;
+
+        draw_rectangle(
+            card_x,
+            card_y,
+            card_w,
+            card_h,
+            if is_sel {
+                Color::new(col.r * 0.25, col.g * 0.25, col.b * 0.25, 0.95)
+            } else if hover {
+                Color::new(0.1, 0.15, 0.24, 0.95)
+            } else {
+                Color::new(0.04, 0.06, 0.1, 0.9)
+            },
+        );
+        draw_rectangle_lines(
+            card_x,
+            card_y,
+            card_w,
+            card_h,
+            if is_sel { 2.5 } else { 1.0 },
+            if is_sel { col } else { Color::new(col.r, col.g, col.b, 0.4) },
+        );
+        draw_text(title, card_x + 12.0, card_y + 28.0, 17.0, col);
+        draw_text(sub, card_x + 12.0, card_y + 52.0, 12.0, WHITE);
+
+        if hover && is_mouse_button_pressed(MouseButton::Left) {
+            return StartMenuAction::SelectClass(idx);
+        }
+    }
+    if is_key_pressed(KeyCode::Key1) {
+        return StartMenuAction::SelectClass(0);
+    }
+    if is_key_pressed(KeyCode::Key2) {
+        return StartMenuAction::SelectClass(1);
+    }
+    if is_key_pressed(KeyCode::Key3) {
+        return StartMenuAction::SelectClass(2);
+    }
+
     // Cột trái: Các nút điều khiển Menu
-    let left_x = px + 36.0;
-    let btn_w = 340.0;
+    let left_x = px + 34.0;
+    let btn_w = 355.0;
 
     if draw_tactical_button(
         left_x,
-        py + 135.0,
+        py + 188.0,
         btn_w,
-        58.0,
+        56.0,
         "BAT DAU CHIEN DAU [ENTER]",
         Color::new(0.0, 1.0, 0.65, 1.0),
     ) || is_key_pressed(KeyCode::Enter)
@@ -314,9 +393,9 @@ pub fn draw_start_menu(
 
     if draw_tactical_button(
         left_x,
-        py + 210.0,
+        py + 258.0,
         btn_w,
-        54.0,
+        52.0,
         "TUY CHINH CAI DAT [PHIM O]",
         Color::new(0.0, 0.88, 1.0, 1.0),
     ) || is_key_pressed(KeyCode::O)
@@ -327,103 +406,99 @@ pub fn draw_start_menu(
     // Tóm tắt trạng thái cài đặt hiện tại ở góc dưới cột trái
     draw_rectangle(
         left_x,
-        py + 285.0,
+        py + 325.0,
         btn_w,
-        215.0,
+        250.0,
         Color::new(0.04, 0.06, 0.1, 0.9),
     );
     draw_rectangle_lines(
         left_x,
-        py + 285.0,
+        py + 325.0,
         btn_w,
-        215.0,
+        250.0,
         1.0,
         Color::new(0.0, 0.8, 1.0, 0.3),
     );
     draw_text(
-        "THONG SO CAI DAT HIEN TAI:",
+        "THONG SO CAI DAT & TIEN HOA:",
         left_x + 16.0,
-        py + 314.0,
+        py + 352.0,
         16.0,
         Color::new(1.0, 0.84, 0.0, 1.0),
     );
     draw_text(
         &format!(
-            "- Do rung man hinh: {:.0}% (Da giam muot)",
+            "- Am luong Synth: {:.0}% | Rung: {:.0}%",
+            settings.master_volume * 100.0,
             settings.screen_shake_intensity * 100.0
         ),
         left_x + 16.0,
-        py + 345.0,
-        15.0,
+        py + 382.0,
+        14.0,
         WHITE,
     );
     draw_text(
         &format!(
-            "- Mat do hieu ung no: {:.0}%",
-            settings.particle_density * 100.0
-        ),
-        left_x + 16.0,
-        py + 372.0,
-        15.0,
-        WHITE,
-    );
-    draw_text(
-        &format!(
-            "- Quy mo dan quai: {:.0}%",
+            "- Mat do VFX: {:.0}% | Dan quai: {:.0}%",
+            settings.particle_density * 100.0,
             settings.swarm_scale * 100.0
         ),
         left_x + 16.0,
-        py + 399.0,
-        15.0,
+        py + 408.0,
+        14.0,
         WHITE,
     );
     draw_text(
-        &format!(
-            "- Hien so sat thuong: {}",
-            if settings.show_damage_numbers { "BAT" } else { "TAT" }
-        ),
+        "- TIEN HOA VU KHI: Nhat trung sung len Lv.3",
         left_x + 16.0,
-        py + 426.0,
-        15.0,
-        WHITE,
+        py + 436.0,
+        14.0,
+        Color::new(0.0, 1.0, 0.65, 1.0),
     );
     draw_text(
-        &format!(
-            "- Nhat sung: {}",
-            if settings.auto_pickup_weapons {
-                "Tu dong + Phim [F]"
-            } else {
-                "Chi khi bam [F]"
-            }
-        ),
+        "  se Tien Hoa thanh Sieu Vu Khi [EVO]!",
         left_x + 16.0,
-        py + 453.0,
-        15.0,
-        WHITE,
+        py + 456.0,
+        14.0,
+        Color::new(0.0, 1.0, 0.65, 1.0),
+    );
+    draw_text(
+        "- TRAM RADAR & LO COT: Dung giu vung Radar",
+        left_x + 16.0,
+        py + 484.0,
+        14.0,
+        Color::new(1.0, 0.85, 0.2, 1.0),
+    );
+    draw_text(
+        "  de goi Ve Tinh ban set & nhan Sung Huyen Thoai!",
+        left_x + 16.0,
+        py + 504.0,
+        14.0,
+        Color::new(1.0, 0.85, 0.2, 1.0),
     );
     draw_text(
         "Bam [ESC] hoac [O] trong tran de chinh ngay!",
         left_x + 16.0,
-        py + 483.0,
+        py + 548.0,
         13.0,
         Color::new(0.0, 0.95, 1.0, 1.0),
     );
 
     // Cột phải: Bảng Hướng Dẫn Chiến Trường & Phím Tắt
-    let right_x = px + 405.0;
-    let right_w = 440.0;
+    let right_x = px + 410.0;
+    let right_w = 476.0;
     draw_rectangle(
         right_x,
-        py + 135.0,
+        py + 188.0,
         right_w,
-        365.0,
+        387.0,
         Color::new(0.04, 0.06, 0.1, 0.9),
     );
     draw_rectangle_lines(
         right_x,
-        py + 135.0,
+        py + 188.0,
         right_w,
-        365.0,
+        387.0,
         1.0,
         Color::new(0.0, 0.8, 1.0, 0.3),
     );
@@ -431,28 +506,28 @@ pub fn draw_start_menu(
     draw_text(
         "CAM NANG TAC CHIEN QUY MO LON:",
         right_x + 18.0,
-        py + 165.0,
+        py + 218.0,
         18.0,
         Color::new(0.0, 0.95, 1.0, 1.0),
     );
 
     let guides = [
+        ("[1][2][3] (Menu)", "Chon 1 trong 3 Chuyen Gia truoc tran"),
         ("[W][A][S][D]", "Di chuyen chien thuat 8 huong"),
         ("[CHUOT TRAI / PHAI]", "Ban vu khi / Chem dao day lui"),
-        ("[SPACE] / [SHIFT]", "Dash ne don (I-frames) / Bullet Time"),
-        ("[1] .. [7]", "Chuyen 7 loai vu khi da nhat duoc"),
+        ("[SPACE] / [SHIFT]", "Dash / Phase Blink / Bullet Time"),
+        ("[1] .. [7]", "Chuyen 7 loai vu khi (Lv.3 -> Tien Hoa EVO)"),
         ("[F]", "Nhat hinh chieu Sung roi tren mat dat"),
         ("[R]", "Active Reload (Bam dung vach xanh +40% DMG)"),
-        ("[Q] AIRSTRIKE", "Rai tham bom + Tia Laser Quy Dao"),
-        ("[E] REINFORCE", "Goi Linh Thuy Quan + Robot + Hoat Tiep Te"),
+        ("[Q] / [E]", "Ky nang Huy Diet & Goi Binh Doan Tiep Vien"),
         ("[G] / [B]", "Tha Hom Sung ngay / Trieu hoi Dai Boss"),
         ("[ESC] / [O]", "Tam dung & Mo Menu Cai Dat bat cu luc nao"),
     ];
 
     for (i, (key, desc)) in guides.iter().enumerate() {
-        let gy = py + 200.0 + (i as f32) * 29.0;
+        let gy = py + 252.0 + (i as f32) * 31.0;
         draw_text(key, right_x + 18.0, gy, 15.0, Color::new(1.0, 0.85, 0.1, 1.0));
-        draw_text(desc, right_x + 178.0, gy, 15.0, WHITE);
+        draw_text(desc, right_x + 182.0, gy, 15.0, WHITE);
     }
 
     StartMenuAction::None
@@ -550,8 +625,8 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
 
     let cx = screen_width() / 2.0;
     let cy = screen_height() / 2.0;
-    let mw = 820.0;
-    let mh = 630.0;
+    let mw = 840.0;
+    let mh = 670.0;
     let mx = cx - mw / 2.0;
     let my = cy - mh / 2.0;
 
@@ -559,30 +634,45 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
     draw_rectangle_lines(mx, my, mw, mh, 2.0, Color::new(0.0, 0.94, 1.0, 0.9));
 
     draw_text(
-        "TUY CHINH CAI DAT HINH ANH & CHIEN TRUONG",
+        "TUY CHINH CAI DAT AM THANH, HINH ANH & CHIEN TRUONG",
         mx + 28.0,
-        my + 42.0,
-        26.0,
+        my + 38.0,
+        24.0,
         Color::new(0.0, 0.95, 1.0, 1.0),
     );
     draw_text(
-        "Keo thanh truot hoac bam [-] / [+] de dieu chinh ngay lap tuc:",
+        "Keo thanh truot hoac bam [-] / [+] (Tu dong luu ra file khi dong):",
         mx + 28.0,
-        my + 66.0,
+        my + 60.0,
         14.0,
         Color::new(0.7, 0.82, 0.95, 1.0),
     );
 
     let row_x = mx + 28.0;
     let row_w = mw - 56.0;
-    let mut cur_y = my + 82.0;
+    let mut cur_y = my + 72.0;
 
-    // 1. Độ rung màn hình (Screen Shake)
+    // 1. Âm lượng tổng (Master Volume)
     draw_slider_row(
         row_x,
         cur_y,
         row_w,
-        "1. DO RUNG MAN HINH (SCREEN SHAKE)",
+        "1. AM LUONG TONG HOP (MASTER SYNTH VOLUME)",
+        "Dieu chinh am luong tieng sung, tia set Tesla, bom no & nang cap",
+        &mut settings.master_volume,
+        0.0,
+        1.0,
+        0.10,
+        Some("TAT 0%"),
+    );
+    cur_y += 65.0;
+
+    // 2. Độ rung màn hình (Screen Shake)
+    draw_slider_row(
+        row_x,
+        cur_y,
+        row_w,
+        "2. DO RUNG MAN HINH (SCREEN SHAKE)",
         "Giam hoac tat han rung cam khi no bom, ban Railgun, Laser Quy Dao",
         &mut settings.screen_shake_intensity,
         0.0,
@@ -590,14 +680,14 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
         0.05,
         Some("TAT 0%"),
     );
-    cur_y += 68.0;
+    cur_y += 65.0;
 
-    // 2. Mật độ hiệu ứng nổ (Particle Density)
+    // 3. Mật độ hiệu ứng nổ (Particle Density)
     draw_slider_row(
         row_x,
         cur_y,
         row_w,
-        "2. MAT DO HIEU UNG HAT CHAY NO (VFX DENSITY)",
+        "3. MAT DO HIEU UNG HAT CHAY NO (VFX DENSITY)",
         "Giam bot tia lua de nhin ro duong dan va quai vat trong dai chien",
         &mut settings.particle_density,
         0.1,
@@ -605,14 +695,14 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
         0.10,
         None,
     );
-    cur_y += 68.0;
+    cur_y += 65.0;
 
-    // 3. Độ sáng lưới nền (Arena Grid)
+    // 4. Độ sáng lưới nền (Arena Grid)
     draw_slider_row(
         row_x,
         cur_y,
         row_w,
-        "3. DO SANG LUOI CHIEN TRUONG (GRID OPACITY)",
+        "4. DO SANG LUOI CHIEN TRUONG (GRID OPACITY)",
         "Dieu chinh do ro cua luoi toa do duoi mat dat",
         &mut settings.grid_opacity,
         0.0,
@@ -620,14 +710,14 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
         0.10,
         Some("TAT 0%"),
     );
-    cur_y += 68.0;
+    cur_y += 65.0;
 
-    // 4. Quy mô đàn quái (Swarm Scale)
+    // 5. Quy mô đàn quái (Swarm Scale)
     draw_slider_row(
         row_x,
         cur_y,
         row_w,
-        "4. QUY MO DAN QUAI (BATTLE SWARM SCALE)",
+        "5. QUY MO DAN QUAI (BATTLE SWARM SCALE)",
         "Tang/giam so luong quai vat xuat hien moi dot (50% Nhe -> 200% Dai Chien)",
         &mut settings.swarm_scale,
         0.5,
@@ -635,7 +725,7 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
         0.25,
         None,
     );
-    cur_y += 70.0;
+    cur_y += 67.0;
 
     // Hai cột cho 4 nút Toggle bên dưới
     let half_w = (row_w - 16.0) / 2.0;
@@ -660,7 +750,7 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
         "TU DONG + [F]",
         "CHI BAM [F]",
     );
-    cur_y += 64.0;
+    cur_y += 61.0;
 
     draw_toggle_row(
         row_x,
@@ -676,36 +766,44 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
         row_x + half_w + 16.0,
         cur_y,
         half_w,
-        "THANH MAU DONG MINH",
-        "Hien ten & HP cua Linh/Mech phe ta",
-        &mut settings.show_ally_bars,
+        "BAN DO RADAR MINIMAP",
+        "Hien Radar vi tri Boss, Sung & Tram",
+        &mut settings.show_minimap,
         "DANG BAT",
         "DANG TAT",
     );
-    cur_y += 72.0;
+    cur_y += 66.0;
 
     // Hàng nút dưới cùng: Khôi phục mặc định & Lưu/Đóng
     if draw_tactical_button(
         row_x,
         cur_y,
         320.0,
-        48.0,
+        46.0,
         "KHOI PHUC MAC DINH [RESET]",
         Color::new(1.0, 0.75, 0.1, 1.0),
     ) {
+        let hs = settings.high_score;
         *settings = GameSettings::default();
+        settings.high_score = hs;
+        settings.save_to_disk();
     }
 
     let close_clicked = draw_tactical_button(
         row_x + row_w - 360.0,
         cur_y,
         360.0,
-        48.0,
+        46.0,
         "LUU & QUAY LAI [ESC]",
         Color::new(0.0, 1.0, 0.65, 1.0),
     );
 
-    close_clicked || is_key_pressed(KeyCode::Escape)
+    if close_clicked || is_key_pressed(KeyCode::Escape) {
+        settings.save_to_disk();
+        true
+    } else {
+        false
+    }
 }
 
 pub fn draw_upgrade_menu(choices: &[UpgradeOption]) -> Option<&'static str> {

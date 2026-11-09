@@ -14,6 +14,8 @@ pub enum GameState {
 
 #[derive(Clone)]
 pub struct GameSettings {
+    /// Âm lượng tổng: 0.0 -> 1.0. Mặc định: 0.70
+    pub master_volume: f32,
     /// Độ rung màn hình: 0.0 (Tắt hẳn) -> 1.0 (Tối đa). Mặc định: 0.15 (15% rất êm)
     pub screen_shake_intensity: f32,
     /// Mật độ hiệu ứng hạt cháy nổ: 0.2 -> 1.0. Mặc định: 0.65
@@ -30,11 +32,16 @@ pub struct GameSettings {
     pub auto_equip_new_weapon: bool,
     /// Hiển thị tên và thanh máu của lính đồng minh
     pub show_ally_bars: bool,
+    /// Hiển thị Bản đồ nhỏ Radar (Minimap)
+    pub show_minimap: bool,
+    /// Điểm kỷ lục cao nhất được lưu lại
+    pub high_score: u64,
 }
 
 impl Default for GameSettings {
     fn default() -> Self {
         Self {
+            master_volume: 0.70,
             screen_shake_intensity: 0.15,
             particle_density: 0.65,
             grid_opacity: 0.50,
@@ -43,7 +50,70 @@ impl Default for GameSettings {
             auto_pickup_weapons: true,
             auto_equip_new_weapon: true,
             show_ally_bars: true,
+            show_minimap: true,
+            high_score: 0,
         }
+    }
+}
+
+impl GameSettings {
+    const CONFIG_PATH: &'static str = "cyber_survivor_settings.cfg";
+
+    pub fn load_or_default() -> Self {
+        let mut s = Self::default();
+        if let Ok(content) = std::fs::read_to_string(Self::CONFIG_PATH) {
+            for line in content.lines() {
+                if let Some((k, v)) = line.split_once('=') {
+                    match k.trim() {
+                        "master_volume" => s.master_volume = v.parse().unwrap_or(s.master_volume),
+                        "screen_shake_intensity" => {
+                            s.screen_shake_intensity = v.parse().unwrap_or(s.screen_shake_intensity)
+                        }
+                        "particle_density" => {
+                            s.particle_density = v.parse().unwrap_or(s.particle_density)
+                        }
+                        "grid_opacity" => s.grid_opacity = v.parse().unwrap_or(s.grid_opacity),
+                        "swarm_scale" => s.swarm_scale = v.parse().unwrap_or(s.swarm_scale),
+                        "show_damage_numbers" => s.show_damage_numbers = v == "true",
+                        "auto_pickup_weapons" => s.auto_pickup_weapons = v == "true",
+                        "auto_equip_new_weapon" => s.auto_equip_new_weapon = v == "true",
+                        "show_ally_bars" => s.show_ally_bars = v == "true",
+                        "show_minimap" => s.show_minimap = v == "true",
+                        "high_score" => s.high_score = v.parse().unwrap_or(0),
+                        _ => {}
+                    }
+                }
+            }
+        }
+        s
+    }
+
+    pub fn save_to_disk(&self) {
+        let data = format!(
+            "master_volume={:.2}\n\
+             screen_shake_intensity={:.2}\n\
+             particle_density={:.2}\n\
+             grid_opacity={:.2}\n\
+             swarm_scale={:.2}\n\
+             show_damage_numbers={}\n\
+             auto_pickup_weapons={}\n\
+             auto_equip_new_weapon={}\n\
+             show_ally_bars={}\n\
+             show_minimap={}\n\
+             high_score={}\n",
+            self.master_volume,
+            self.screen_shake_intensity,
+            self.particle_density,
+            self.grid_opacity,
+            self.swarm_scale,
+            self.show_damage_numbers,
+            self.auto_pickup_weapons,
+            self.auto_equip_new_weapon,
+            self.show_ally_bars,
+            self.show_minimap,
+            self.high_score
+        );
+        let _ = std::fs::write(Self::CONFIG_PATH, data);
     }
 }
 
