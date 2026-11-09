@@ -1,28 +1,52 @@
-# ⚡ CYBER SURVIVOR: 2D Top-Down Tactical Action Shooter
+# ⚡ CYBER SURVIVOR: Grand-Scale 2D Tactical Action Shooter (Rust + Web)
 
-> Một game hành động bắn súng góc nhìn từ trên xuống (2D Top-Down Action Shooter) trên nền web, kết hợp đồ họa Neon Cyberpunk, âm thanh tổng hợp đa âm bằng Web Audio API và cơ chế điều khiển bàn phím tốc độ cao (High APM).
+> Một tựa game hành động bắn súng góc nhìn từ trên xuống (2D Top-Down Tactical Action Shooter) với các trận đại chiến quy mô lớn, được thiết kế theo **kiến trúc hướng Trait (Trait-Based Modular Architecture)** bằng **Rust (`macroquad`)** và phiên bản Web (**HTML5 Canvas + Web Audio**).
 
 ---
 
-## 🎮 Tính năng nổi bật
+## 🔥 Tính năng nổi bật (Phiên bản Rust — Grand Battle Edition)
 
-- 🕹️ **Thao tác phím dồn dập (High APM):** Di chuyển 8 hướng, lướt né đạn (Dash I-frames), làm chậm thời gian (Bullet Time), ném lựu đạn nổ chùm, triển khai trụ súng tự động.
-- 🎯 **Cơ chế Nạp đạn Chủ động (Active Reload - Gears of War Style):** Bấm `R` đúng vùng sáng (Sweet Spot) để nạp đạn tức thì và nhận buff **+40% Overcharge Damage**.
-- 🔫 **Kho vũ khí đa dạng:**
-  - `[1] PISTOL`: Vô hạn đạn, tốc độ bắn linh hoạt.
-  - `[2] SHOTGUN`: Bắn tỏa chùm 7 viên đạn uy lực cực lớn ở cự ly gần.
-  - `[3] ASSAULT RIFLE`: Tốc độ xả đạn liên thanh dồn dập.
-  - `[4] PLASMA CANNON`: Bắn đạn năng lượng xuyên mục tiêu.
-  - `[5] RPG`: Bắn tên lửa nổ diện rộng, hất tung kẻ địch.
-- 👾 **Kẻ địch & Boss phong phú:**
-  - `Swarm Runner`: Quái áp sát bầy đàn tốc độ cao.
-  - `Acid Spitter`: Quái giữ khoảng cách và phun cầu độc.
-  - `Kamikaze Drone`: Drone phát nổ tự sát.
-  - `Brute Tank`: Quái trâu bò tích điện lao húc dữ dội.
-  - `Cyber Titan Boss (Mỗi 5 wave)`: Thanh máu lớn, bắn đạn nan quạt xoay tròn và triệu hồi quái đệ tử.
-- 🧬 **Hệ thống Nâng cấp Công nghệ (Roguelite):** Sau mỗi Wave, người chơi được lựa chọn 1 trong 3 mô-đun nâng cấp (Đạn nảy tường, Đạn xuyên thấu, Hút máu theo mạng hạ gục, Lướt lửa thiêu đốt...).
-- 🔊 **Web Audio API Pure Synthesis:** Không cần tải bất kỳ file mp3/wav ngoài nào, toàn bộ âm thanh (tiếng súng các loại, nổ bom, chém dao, lướt né, cảnh báo) đều được tổng hợp thời gian thực.
-- 🎨 **Đồ họa Neon & Hiệu ứng chân thực:** Máu vương trên sàn đấu, vỏ đạn kim loại rơi leng keng, đèn pin rọi theo chuột, rung màn hình (Screen Shake) uy lực.
+- ⚔️ **Trận chiến quy mô lớn (Grand-Scale Battles):**
+  - Biển quái vật xuất hiện theo từng tiểu đội vây ráp từ mọi hướng.
+  - **Tiểu đội Đồng Minh AI (`AlliedBehavior`)**: Lính Thủy Quân Lục Chiến (`Allied Marine`), Robot Hạng Nặng (`Heavy Mech`) bắn pháo kép + tên lửa, và Drone Hộ Vệ (`Orbiting Combat Drone`) bay quanh người chơi.
+  - **Thùng nhiên liệu nổ dây chuyền (`Explosive Barrel`)**: Tạo hiệu ứng nổ Domino quét sạch cả góc bản đồ.
+- 🎁 **Hệ thống Nhặt Súng Dưới Đất & Độ Hiếm (`WeaponDrop` & `WeaponRarity`):**
+  - Khởi đầu với súng lục cơ bản `[1] PISTOL`.
+  - Khoang tiếp tế từ quỹ đạo (`Orbital Supply Pod`), Quái Tinh Anh và các bộ phận Boss khi bị phá hủy sẽ rơi ra hòm vũ khí phát sáng theo 4 cấp độ hiếm: **Common**, **Rare**, **Epic**, **Legendary**.
+  - Đi qua hoặc bấm `[F]` để nhặt và mở khóa súng vào các ô `[1]`–`[7]`. Nhặt trùng súng đã có sẽ **Nâng Cấp Level (`Lv.2`, `Lv.3+`)** tăng mạnh sát thương, số tia đạn và tốc độ bắn!
+- 🔫 **7 Vũ Khí Hạng Nặng & Hủy Diệt (`WeaponBehavior`):**
+  - `[1] PISTOL` — Súng lục chiến thuật vô hạn đạn.
+  - `[2] SHOTGUN` — Súng hoa cải bắn tỏa chùm đạn (tăng số viên theo Level).
+  - `[3] VULCAN MINIGUN` — Súng máy 6 nòng tốc độ xả đạn siêu thanh.
+  - `[4] TESLA CHAIN-GUN` — Súng phóng hồ quang điện giật dây chuyền qua nhiều mục tiêu kèm làm choáng.
+  - `[5] ORBITAL RAILGUN` — Pháo điện từ bắn tia năng lượng xuyên thấu toàn bộ kẻ địch trên đường thẳng.
+  - `[6] SINGULARITY CANNON` — Pháo bắn ra **Hố Đen Vũ Trụ (`SingularityBlackHoleEvent`)** hút mọi quái vật xung quanh vào tâm rồi phát nổ.
+  - `[7] CLUSTER RPG` — Tên lửa hạng nặng nổ mảnh bom chùm diện rộng.
+- 👾 **Đại Boss Pháo Đài Nhiều Bộ Phận (`ColossalBehemothBoss` & `BossPartBehavior`):**
+  - Boss khổng lồ sở hữu các mô-đun vũ khí độc lập gắn quanh thân: Tay Pháo Cối (`Mortar Artillery`), Tháp Súng Gatling (`Gatling Turret`), Lõi Khiên Năng Lượng (`Shield Generator`), và Khoang Ấp Drone (`Drone Hatchery`).
+  - Người chơi có thể bắn nổ từng bộ phận để tước vũ khí của Boss và nhặt súng phẩm chất cao rơi ra ngay trong trận đánh.
+- ⚙️ **Menu Chiến Thuật & Bảng Tuỳ Chỉnh Cài Đặt (`GameSettings`):**
+  - Điều chỉnh trực tiếp bằng thanh trượt kéo chuột (`Slider`) hoặc nút bật/tắt (`Toggle`) ngay trong trận (`[ESC]` hoặc `[O]`):
+    - **Độ rung màn hình (`Screen Shake`)**: Dao động điều hòa mượt (`0%` tắt hẳn đến `100%`, mặc định `15%`).
+    - **Mật độ hiệu ứng hạt cháy nổ (`VFX Density`)**: Giữ tầm nhìn luôn rõ ràng trong đại chiến.
+    - **Độ sáng lưới nền (`Grid Opacity`)** & **Quy mô đàn quái (`Swarm Scale`: `50%` – `200%`)**.
+    - Bật/tắt **Số sát thương (`Damage Numbers`)**, **Tự động nhặt súng (`Auto-Pickup`)**, **Tự động cầm súng mới (`Auto-Equip`)**, và **Thanh máu đồng minh (`Ally HP Bars`)**.
+
+---
+
+## 🧱 Kiến trúc Trừu Tượng Hóa (Rust Trait Architecture)
+
+Toàn bộ các thực thể và sự kiện có tính chất tương đồng được trừu tượng hóa qua các `Trait` kèm cơ chế hàng đợi lệnh `CombatContext` + `WorldCommand`:
+
+| Trait | File | Vai trò & Các lớp triển khai |
+| :--- | :--- | :--- |
+| `BattlefieldEvent` | `rust/src/core/events.rs` | Các sự kiện không gian/thời gian trên chiến trường: `ShockwaveRingEvent`, `SingularityBlackHoleEvent`, `CarpetBombingRunEvent`, `OrbitalLaserStrikeEvent`, `MeteorWarningStrikeEvent`, `BeamArcVisualEvent`, `SupplyPodDropEvent` |
+| `AlliedBehavior` | `rust/src/ally/mod.rs` | Đơn vị đồng minh AI: `AlliedMarine`, `AlliedHeavyMech`, `OrbitingCombatDrone` |
+| `BossPartBehavior` | `rust/src/enemy/traits.rs` | Các bộ phận độc lập trên thân Boss: `MortarArtilleryArmPart`, `GatlingLaserTurretPart`, `ShieldGeneratorPart`, `DroneHatcheryBayPart` |
+| `EnemyBehavior` | `rust/src/enemy/traits.rs` | Hành vi AI quái vật: `SwarmRunner`, `AcidSpitter`, `KamikazeDrone`, `BruteTank`, `PhantomAssassin`, `NecroSummoner`, `ColossalBehemothBoss` |
+| `WeaponBehavior` | `rust/src/weapon/traits.rs` | Hành vi khai hỏa vũ khí: `StandardBallisticBehavior`, `BuckshotSpreadBehavior`, `TeslaChainBehavior`, `RailgunBeamBehavior`, `SingularityCannonBehavior`, `ClusterRocketBehavior` |
+| `SkillBehavior` | `rust/src/skill/traits.rs` | Kỹ năng kích hoạt: `TacticalDashSkill` (`[SPACE]`), `TacticalAirstrikeSkill` (`[Q]`), `ReinforcementsDropSkill` (`[E]`) |
+| `CharacterClass` | `rust/src/character/traits.rs` | Lớp nhân vật người chơi: `CyberMarine`, `VoidStalker`, `TechEngineer` |
 
 ---
 
@@ -31,54 +55,59 @@
 | Phím | Thao tác |
 | :---: | :--- |
 | <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> | Di chuyển chiến thuật 8 hướng |
-| <kbd>SPACE</kbd> | Dash / Lướt né đòn (bất tử trong tích tắc) |
-| <kbd>R</kbd> | Active Reload (Căn vạch nạp nhanh & nhận Overcharge buff) |
-| <kbd>1</kbd> - <kbd>5</kbd> / Cuộn chuột | Đổi vũ khí |
-| <kbd>Q</kbd> | Ném lựu đạn nổ chùm (Cluster Grenade) |
-| <kbd>E</kbd> | Đặt ụ súng máy tự động (Auto-Turret) |
-| <kbd>SHIFT</kbd> | Bullet Time (Làm chậm thời gian Ma Trận) |
-| 🖱️ Chuột trái | Ngắm và bắn súng 360° |
-| 🖱️ Chuột phải | Chém dao cận chiến (Melee Slash hất lùi quái) |
-| <kbd>ESC</kbd> / <kbd>P</kbd> | Tạm dừng trận đấu |
+| 🖱️ Chuột trái / phải | Bắn vũ khí 360° / Chém dao cận chiến đẩy lùi |
+| <kbd>1</kbd> – <kbd>7</kbd> | Chuyển đổi giữa 7 loại vũ khí đã mở khóa |
+| <kbd>F</kbd> | Nhặt súng rơi dưới đất (hoặc tự động nhặt khi lại gần) |
+| <kbd>R</kbd> | Active Reload (Bấm đúng vạch xanh nhận **+40% Overcharge DMG**) |
+| <kbd>SPACE</kbd> | Lướt chiến thuật (Dash I-frames + để lại mìn xung kích) |
+| <kbd>SHIFT</kbd> | Bullet Time (Làm chậm thời gian chiến trường) |
+| <kbd>Q</kbd> | **Tactical Airstrike**: Rải thảm bom liên hoàn + Tia Laser Quỹ Đạo |
+| <kbd>E</kbd> | **Reinforcements Drop**: Gọi Lính Thủy Quân + Robot Hạng Nặng + Drone + Khoang Tiếp Tế |
+| <kbd>G</kbd> | Gọi ngay một Khoang Tiếp Tế Súng (`Orbital Supply Pod`) tại vị trí chuột |
+| <kbd>B</kbd> | Triệu hồi ngay Đại Boss Pháo Đài (`Colossal Behemoth Boss`) |
+| <kbd>ESC</kbd> / <kbd>P</kbd> / <kbd>O</kbd> | Tạm dừng trận đấu & Mở Bảng Tuỳ Chỉnh Cài Đặt (`Settings`) |
 
 ---
 
 ## 🚀 Cách chạy game
 
-### 🦀 Phiên bản Rust Native (Hiệu năng cực cao 60-120+ FPS)
-
-Dự án có phiên bản viết thuần bằng **Rust** (sử dụng thư viện đồ họa phần cứng OpenGL/Metal `macroquad`):
+### 🦀 Phiên bản Rust Native (Khuyên dùng — 60-120+ FPS)
 
 ```bash
 cd rust
 
-# Chạy trực tiếp ở chế độ phát triển
-cargo run
-
-# Hoặc build bản tối ưu hóa cao nhất (Release)
-cargo build --release
-./target/release/cyber-survivor-rs
+# Build và chạy bản tối ưu hóa cao nhất (Release)
+cargo run --release
 ```
 
 ### 🌐 Phiên bản Web (HTML5 Canvas + Web Audio)
 
-Game cũng có phiên bản web hoàn toàn bằng HTML5 & Vanilla JS:
-
 ```bash
-# Sử dụng Python 3
 python3 -m http.server 8080
 ```
-Sau đó mở trình duyệt tại: `http://localhost:8080` (hoặc chơi trực tuyến trên [GitHub Pages](https://truonghoang2004.github.io/cyber-survivor/)).
+Sau đó mở trình duyệt tại `http://localhost:8080` hoặc trải nghiệm trên [GitHub Pages](https://truonghoang2004.github.io/cyber-survivor/).
 
 ---
 
-## 📁 Cấu trúc dự án
-```
+## 📁 Cấu trúc thư mục
+
+```text
 topdown-shooter/
-├── index.html     # Khung giao diện HTML5 Canvas, HUD và Modal
-├── style.css      # Phong cách đồ họa Neon Cyberpunk, bố cục HUD
-├── game.js        # Logic game engine, Web Audio synth, AI, vật lý và rendering
-└── README.md      # Tài liệu hướng dẫn
+├── rust/
+│   ├── Cargo.toml
+│   └── src/
+│       ├── main.rs            # Entry point & vòng lặp game
+│       ├── ally/              # Trait AlliedBehavior & các đơn vị đồng minh AI
+│       ├── character/         # Trait CharacterClass & thông số Player
+│       ├── core/              # GameWorld, CombatContext, BattlefieldEvent, Props, GameSettings
+│       ├── enemy/             # Trait EnemyBehavior, BossPartBehavior, Quái & Đại Boss
+│       ├── skill/             # Trait SkillBehavior, Không kích, Tiếp viện & Deployables
+│       ├── ui/                # HUD chiến trường, Start/Pause Menu & Settings Modal
+│       └── weapon/            # Trait WeaponBehavior, 7 loại súng & đạn đạo
+├── index.html                 # Phiên bản Web HTML5 Canvas
+├── style.css
+├── game.js
+└── README.md
 ```
 
 ---
