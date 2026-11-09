@@ -43,19 +43,6 @@ impl AlliedEntity {
         let sp = self.body.pos + cam_offset;
         self.behavior.draw_custom(&self.body, sp);
 
-        draw_circle(sp.x, sp.y, self.body.radius, self.body.color);
-        draw_circle(sp.x, sp.y, self.body.radius * 0.45, Color::new(0.05, 0.1, 0.18, 1.0));
-
-        let dir = vec2(self.body.angle.cos(), self.body.angle.sin());
-        draw_line(
-            sp.x,
-            sp.y,
-            sp.x + dir.x * (self.body.radius + 6.0),
-            sp.y + dir.y * (self.body.radius + 6.0),
-            3.5,
-            WHITE,
-        );
-
         if show_bars {
             let bw = self.body.radius * 2.0;
             let pct = (self.body.hp / self.body.max_hp.max(1.0)).clamp(0.0, 1.0);
@@ -111,6 +98,25 @@ impl AlliedBehavior for AlliedMarine {
                 ));
             }
         }
+    }
+
+    fn draw_custom(&self, body: &AlliedBody, sp: Vec2) {
+        let fwd = vec2(body.angle.cos(), body.angle.sin());
+        let right = vec2(-fwd.y, fwd.x);
+        let r = body.radius;
+
+        // Hai cầu vai giáp lính thủy quân lục chiến
+        for side in [-1.0f32, 1.0] {
+            let sh = sp + right * (side * r * 0.78);
+            draw_poly(sh.x, sh.y, 4, 6.5, body.angle * 57.3, body.color);
+        }
+        // Thân giáp lục giác + mũ chiến thuật
+        draw_poly(sp.x, sp.y, 6, r * 0.78, body.angle * 57.3, Color::new(0.08, 0.25, 0.35, 1.0));
+        draw_poly_lines(sp.x, sp.y, 6, r * 0.78, body.angle * 57.3, 2.0, body.color);
+        // Súng trường xung kích trên tay
+        let gun_start = sp + right * 4.0;
+        let gun_end = gun_start + fwd * (r + 9.0);
+        draw_line(gun_start.x, gun_start.y, gun_end.x, gun_end.y, 3.8, WHITE);
     }
 }
 
@@ -184,14 +190,22 @@ impl AlliedBehavior for AlliedHeavyMech {
         }
     }
 
-    fn draw_custom(&self, body: &AlliedBody, screen_pos: Vec2) {
-        draw_circle_lines(
-            screen_pos.x,
-            screen_pos.y,
-            body.radius + 4.0,
-            2.5,
-            Color::new(0.2, 1.0, 0.6, 0.75),
-        );
+    fn draw_custom(&self, body: &AlliedBody, sp: Vec2) {
+        let fwd = vec2(body.angle.cos(), body.angle.sin());
+        let right = vec2(-fwd.y, fwd.x);
+        let r = body.radius;
+
+        // 2 dàn pháo đôi gắn trên hai vai Robot Mech
+        for side in [-1.0f32, 1.0] {
+            let arm = sp + right * (side * (r * 0.92));
+            let barrel_tip = arm + fwd * (r + 10.0);
+            draw_line(arm.x, arm.y, barrel_tip.x, barrel_tip.y, 5.5, Color::new(0.75, 0.85, 0.95, 1.0));
+        }
+
+        // Thân Robot hình hộp bát giác bọc thép xanh ngọc
+        draw_poly(sp.x, sp.y, 4, r, body.angle * 57.3 + 45.0, Color::new(0.08, 0.25, 0.2, 0.98));
+        draw_poly_lines(sp.x, sp.y, 4, r, body.angle * 57.3 + 45.0, 2.8, body.color);
+        draw_poly(sp.x, sp.y, 4, r * 0.48, body.angle * 57.3, Color::new(1.0, 0.85, 0.1, 1.0));
     }
 }
 
@@ -231,5 +245,18 @@ impl AlliedBehavior for OrbitingCombatDrone {
                 });
             }
         }
+    }
+
+    fn draw_custom(&self, body: &AlliedBody, sp: Vec2) {
+        let fwd = vec2(body.angle.cos(), body.angle.sin());
+        let right = vec2(-fwd.y, fwd.x);
+        let r = body.radius;
+
+        // Hình dáng phi cơ cánh én (Chevron Stealth Wing)
+        let nose = sp + fwd * (r * 1.3);
+        let wing_l = sp - fwd * (r * 0.6) + right * (r * 1.25);
+        let wing_r = sp - fwd * (r * 0.6) - right * (r * 1.25);
+        draw_triangle(nose, wing_l, wing_r, body.color);
+        draw_triangle_lines(nose, wing_l, wing_r, 1.8, WHITE);
     }
 }

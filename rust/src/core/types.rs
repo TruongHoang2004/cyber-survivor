@@ -34,6 +34,10 @@ pub struct GameSettings {
     pub show_ally_bars: bool,
     /// Hiển thị Bản đồ nhỏ Radar (Minimap)
     pub show_minimap: bool,
+    /// Chế độ Hỗ Trợ Nhắm Bắn: 0 = Thủ công (Manual), 1 = Khóa tâm thông minh (Smart Assist), 2 = Tự động 360° (Full Auto-Aim)
+    pub aim_assist_mode: u8,
+    /// Tự động bóp cò bắn khi có mục tiêu (Auto-Fire, phím tắt [V])
+    pub auto_fire: bool,
     /// Điểm kỷ lục cao nhất được lưu lại
     pub high_score: u64,
 }
@@ -51,6 +55,8 @@ impl Default for GameSettings {
             auto_equip_new_weapon: true,
             show_ally_bars: true,
             show_minimap: true,
+            aim_assist_mode: 1,
+            auto_fire: false,
             high_score: 0,
         }
     }
@@ -58,6 +64,14 @@ impl Default for GameSettings {
 
 impl GameSettings {
     const CONFIG_PATH: &'static str = "cyber_survivor_settings.cfg";
+
+    pub fn aim_mode_label(&self) -> &'static str {
+        match self.aim_assist_mode {
+            0 => "THU CONG (MANUAL)",
+            1 => "NAM CHAM THONG MINH (SMART)",
+            _ => "TU DONG 360 (FULL AUTO)",
+        }
+    }
 
     pub fn load_or_default() -> Self {
         let mut s = Self::default();
@@ -79,6 +93,10 @@ impl GameSettings {
                         "auto_equip_new_weapon" => s.auto_equip_new_weapon = v == "true",
                         "show_ally_bars" => s.show_ally_bars = v == "true",
                         "show_minimap" => s.show_minimap = v == "true",
+                        "aim_assist_mode" => {
+                            s.aim_assist_mode = v.parse::<u8>().unwrap_or(1).min(2)
+                        }
+                        "auto_fire" => s.auto_fire = v == "true",
                         "high_score" => s.high_score = v.parse().unwrap_or(0),
                         _ => {}
                     }
@@ -100,6 +118,8 @@ impl GameSettings {
              auto_equip_new_weapon={}\n\
              show_ally_bars={}\n\
              show_minimap={}\n\
+             aim_assist_mode={}\n\
+             auto_fire={}\n\
              high_score={}\n",
             self.master_volume,
             self.screen_shake_intensity,
@@ -111,6 +131,8 @@ impl GameSettings {
             self.auto_equip_new_weapon,
             self.show_ally_bars,
             self.show_minimap,
+            self.aim_assist_mode,
+            self.auto_fire,
             self.high_score
         );
         let _ = std::fs::write(Self::CONFIG_PATH, data);

@@ -23,7 +23,10 @@ impl EnemyFactory {
                 statuses: Vec::new(),
                 parts: Vec::new(),
             },
-            Box::new(SwarmRunner),
+            Box::new(SwarmRunner {
+                facing: 0.0,
+                leg_phase: rand::gen_range(0.0, 6.28),
+            }),
         )
     }
 
@@ -45,7 +48,10 @@ impl EnemyFactory {
                 statuses: Vec::new(),
                 parts: Vec::new(),
             },
-            Box::new(SplitterSlime { generation: 1 }),
+            Box::new(SplitterSlime {
+                generation: 1,
+                rot_angle: rand::gen_range(0.0, 6.28),
+            }),
         )
     }
 
@@ -69,6 +75,7 @@ impl EnemyFactory {
             },
             Box::new(AcidSpitter {
                 shoot_timer: rand::gen_range(0.5, 1.8),
+                facing: 0.0,
             }),
         )
     }
@@ -91,7 +98,10 @@ impl EnemyFactory {
                 statuses: Vec::new(),
                 parts: Vec::new(),
             },
-            Box::new(KamikazeDrone { pulse: 0.0 }),
+            Box::new(KamikazeDrone {
+                pulse: 0.0,
+                facing: 0.0,
+            }),
         )
     }
 
@@ -142,6 +152,7 @@ impl EnemyFactory {
                 charge_timer: 0.0,
                 is_charging: false,
                 charge_angle: 0.0,
+                facing: 0.0,
             }),
         )
     }

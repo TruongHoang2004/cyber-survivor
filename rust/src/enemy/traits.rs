@@ -105,12 +105,14 @@ impl EnemyEntity {
                         Color::new(1.0, 0.85, 0.0, 1.0),
                         22.0,
                     );
-                    // Rơi súng hiếm ngay khi bắn nổ 1 bộ phận Boss!
-                    ctx.spawn_weapon_drop(WeaponDrop::new(
-                        drop_pos,
-                        rand::gen_range(1, 7),
-                        WeaponRarity::Epic,
-                    ));
+                    // Có 30% tỉ lệ rơi súng hiếm khi bắn nổ 1 bộ phận Boss
+                    if rand::gen_range(0.0, 1.0) < 0.30 {
+                        ctx.spawn_weapon_drop(WeaponDrop::new(
+                            drop_pos,
+                            rand::gen_range(1, 7),
+                            WeaponRarity::Epic,
+                        ));
+                    }
                 }
                 return dmg;
             }
@@ -195,31 +197,33 @@ impl EnemyEntity {
     pub fn draw(&self, cam_offset: Vec2) {
         let sp = self.body.pos + cam_offset;
 
-        self.behavior.draw_custom(&self.body, sp, cam_offset);
-
-        // Nếu Boss còn Shield Generator, vẽ vòng khiên năng lượng xanh bảo vệ thân chính
+        // Nếu Boss còn Shield Generator, vẽ khung khiên lục giác năng lượng xanh bảo vệ thân chính
         if self
             .body
             .parts
             .iter()
             .any(|p| p.behavior.is_shield_generator())
         {
-            draw_circle(
+            draw_poly(
                 sp.x,
                 sp.y,
-                self.body.radius + 12.0,
-                Color::new(0.0, 0.85, 1.0, 0.2),
+                6,
+                self.body.radius + 14.0,
+                15.0,
+                Color::new(0.0, 0.85, 1.0, 0.16),
             );
-            draw_circle_lines(
+            draw_poly_lines(
                 sp.x,
                 sp.y,
-                self.body.radius + 12.0,
+                6,
+                self.body.radius + 14.0,
+                15.0,
                 3.0,
                 Color::new(0.0, 0.95, 1.0, 0.85),
             );
         }
 
-        // Vẽ các khớp nối từ thân chính tới các bộ phận phụ (BossPart)
+        // Vẽ các khớp xương cơ khí nối từ thân chính tới các bộ phận phụ (BossPart)
         for part in &self.body.parts {
             let p_sp = sp + part.offset;
             draw_line(
@@ -227,68 +231,92 @@ impl EnemyEntity {
                 sp.y,
                 p_sp.x,
                 p_sp.y,
-                6.0,
-                Color::new(0.3, 0.35, 0.45, 1.0),
+                8.0,
+                Color::new(0.22, 0.26, 0.34, 1.0),
+            );
+            draw_line(
+                sp.x,
+                sp.y,
+                p_sp.x,
+                p_sp.y,
+                3.0,
+                Color::new(0.55, 0.65, 0.78, 0.9),
             );
         }
 
-        // Status aura
+        // Status aura (Hiệu ứng cháy / đóng băng / choáng)
         for st in &self.body.statuses {
             match st {
                 StatusEffect::Burn { .. } => {
-                    draw_circle(
+                    draw_poly_lines(
                         sp.x,
                         sp.y,
-                        self.body.radius + 3.5,
-                        Color::new(1.0, 0.4, 0.0, 0.45),
+                        5,
+                        self.body.radius + 5.0,
+                        (get_time() as f32) * 90.0,
+                        2.5,
+                        Color::new(1.0, 0.45, 0.0, 0.85),
                     );
                 }
                 StatusEffect::Slow { .. } => {
-                    draw_circle(
+                    draw_poly_lines(
                         sp.x,
                         sp.y,
-                        self.body.radius + 3.5,
-                        Color::new(0.2, 0.8, 1.0, 0.45),
+                        6,
+                        self.body.radius + 5.0,
+                        0.0,
+                        2.5,
+                        Color::new(0.2, 0.85, 1.0, 0.85),
                     );
                 }
                 StatusEffect::Stun { .. } => {
-                    draw_circle_lines(sp.x, sp.y, self.body.radius + 5.0, 2.0, YELLOW);
+                    draw_poly_lines(
+                        sp.x,
+                        sp.y,
+                        3,
+                        self.body.radius + 7.0,
+                        (get_time() as f32) * 180.0,
+                        2.5,
+                        YELLOW,
+                    );
                 }
             }
         }
 
-        // Core body (nháy trắng khi trúng đạn - Hit Flash)
-        let draw_col = if self.body.hit_flash > 0.0 {
-            WHITE
-        } else {
-            self.body.color
-        };
-        draw_circle(sp.x, sp.y, self.body.radius, draw_col);
-        draw_circle(sp.x, sp.y, self.body.radius * 0.42, BLACK);
+        // Mỗi loại quái tự vẽ hình dáng đặc trưng riêng trong `draw_custom` (không dùng hình tròn chung nữa)
+        self.behavior.draw_custom(&self.body, sp, cam_offset);
 
-        // Vẽ từng bộ phận phụ (BossPart) và thanh máu riêng của từng bộ phận
-        for part in &self.body.parts {
+        // Vẽ từng bộ phận phụ (BossPart) với hình khối cơ khí riêng biệt và thanh máu riêng
+        for (idx, part) in self.body.parts.iter().enumerate() {
             let p_sp = sp + part.offset;
             let p_col = if part.hit_flash > 0.0 {
                 WHITE
             } else {
                 part.color
             };
-            draw_circle(p_sp.x, p_sp.y, part.radius, p_col);
-            draw_circle_lines(p_sp.x, p_sp.y, part.radius, 2.0, BLACK);
+            let sides = match idx % 4 {
+                0 => 4, // Mortar Cannon: Khối pháo vuông
+                1 => 3, // Laser Turret: Tháp tam giác
+                2 => 6, // Shield Generator: Lõi lục giác
+                _ => 5, // Drone Hatchery: Khoang ngũ giác
+            };
+            let rot = (get_time() as f32) * 35.0 * if idx % 2 == 0 { 1.0 } else { -1.0 };
+            draw_poly(p_sp.x, p_sp.y, sides, part.radius, rot, Color::new(0.12, 0.15, 0.22, 0.96));
+            draw_poly(p_sp.x, p_sp.y, sides, part.radius * 0.72, rot, p_col);
+            draw_poly_lines(p_sp.x, p_sp.y, sides, part.radius, rot, 2.5, WHITE);
 
             let bw = part.radius * 2.2;
             let pct = (part.hp / part.max_hp).clamp(0.0, 1.0);
             draw_rectangle(
                 p_sp.x - bw / 2.0,
-                p_sp.y - part.radius - 9.0,
+                p_sp.y - part.radius - 10.0,
                 bw,
                 4.0,
-                Color::new(0.0, 0.0, 0.0, 0.75),
+                Color::new(0.0, 0.0, 0.0, 0.8),
             );
             draw_rectangle(
                 p_sp.x - bw / 2.0,
-                p_sp.y - part.radius - 9.0,
+                p_sp.y - part.radius - 10.0,
                 bw * pct,
                 4.0,
                 Color::new(1.0, 0.75, 0.0, 1.0),
@@ -297,21 +325,21 @@ impl EnemyEntity {
 
         // Health bar cho quái thường
         if self.body.hp < self.body.max_hp && !self.body.is_boss {
-            let bw = self.body.radius * 2.0;
+            let bw = self.body.radius * 2.1;
             let pct = (self.body.hp / self.body.max_hp).clamp(0.0, 1.0);
             draw_rectangle(
                 sp.x - bw / 2.0,
-                sp.y - self.body.radius - 8.0,
+                sp.y - self.body.radius - 10.0,
                 bw,
-                3.5,
-                Color::new(0.0, 0.0, 0.0, 0.65),
+                4.0,
+                Color::new(0.0, 0.0, 0.0, 0.75),
             );
             draw_rectangle(
                 sp.x - bw / 2.0,
-                sp.y - self.body.radius - 8.0,
+                sp.y - self.body.radius - 10.0,
                 bw * pct,
-                3.5,
-                Color::new(0.0, 1.0, 0.4, 1.0),
+                4.0,
+                Color::new(0.0, 1.0, 0.45, 1.0),
             );
         }
     }

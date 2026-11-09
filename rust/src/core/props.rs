@@ -96,15 +96,21 @@ impl WeaponDrop {
             Color::new(col.r, col.g, col.b, 0.75),
         );
 
-        // Vòng đế phát sáng dưới đất
-        draw_circle(sp.x, sp.y, 18.0, Color::new(col.r, col.g, col.b, 0.22));
-        draw_circle_lines(sp.x, sp.y, 18.0, 2.0, col);
+        // Khung bệ hòm tiếp tế lục giác dưới đất (không dùng hình tròn)
+        draw_poly(sp.x, sp.y, 6, 20.0, 0.0, Color::new(0.08, 0.12, 0.18, 0.9));
+        draw_poly_lines(sp.x, sp.y, 6, 20.0, 0.0, 2.2, col);
 
-        // Vẽ hình dáng khẩu súng nổi bồng bềnh
+        // Vẽ hình dáng khẩu súng chi tiết (báng súng, thân súng, băng đạn, nòng súng)
         let gy = sp.y - 6.0 + bob;
-        draw_rectangle(sp.x - 12.0, gy - 4.0, 24.0, 7.0, Color::new(0.2, 0.25, 0.32, 1.0));
-        draw_rectangle(sp.x - 4.0, gy - 3.0, 18.0, 4.0, col);
-        draw_rectangle(sp.x - 10.0, gy + 2.0, 5.0, 6.0, Color::new(0.15, 0.18, 0.22, 1.0));
+        // Báng súng
+        draw_rectangle(sp.x - 16.0, gy - 2.0, 7.0, 6.0, Color::new(0.22, 0.26, 0.34, 1.0));
+        // Thân súng chính
+        draw_rectangle(sp.x - 10.0, gy - 5.0, 20.0, 8.0, Color::new(0.15, 0.2, 0.28, 1.0));
+        draw_rectangle_lines(sp.x - 10.0, gy - 5.0, 20.0, 8.0, 1.5, col);
+        // Nòng súng & băng đạn
+        draw_rectangle(sp.x + 10.0, gy - 3.5, 10.0, 4.5, col);
+        draw_rectangle(sp.x - 2.0, gy + 3.0, 5.0, 6.0, col);
+        draw_rectangle(sp.x - 11.0, gy + 3.0, 4.5, 6.0, Color::new(0.3, 0.35, 0.42, 1.0));
 
         // Hiển thị tên súng & hướng dẫn nhặt khi đứng gần
         let dist = (self.pos - player_pos).length();
@@ -149,13 +155,20 @@ impl ExplosiveBarrel {
         let sp = self.pos + cam_offset;
         let flashing = self.fuse_timer.is_some();
         let body_col = if flashing {
-            Color::new(1.0, 0.5, 0.0, 1.0)
+            Color::new(1.0, 0.55, 0.0, 1.0)
         } else {
-            Color::new(0.85, 0.15, 0.15, 1.0)
+            Color::new(0.82, 0.14, 0.14, 1.0)
         };
 
-        draw_circle(sp.x, sp.y, self.radius, body_col);
-        draw_circle_lines(sp.x, sp.y, self.radius, 2.5, Color::new(1.0, 0.85, 0.0, 1.0));
-        draw_text("TNT", sp.x - 11.0, sp.y + 4.0, 13.0, YELLOW);
+        // Thùng phuy nhiên liệu nổ hình trụ chữ nhật đứng có đai thép cảnh báo
+        let w = 24.0;
+        let h = 30.0;
+        let x = sp.x - w / 2.0;
+        let y = sp.y - h / 2.0;
+        draw_rectangle(x, y, w, h, body_col);
+        draw_rectangle(x, y + 6.0, w, 4.0, Color::new(1.0, 0.85, 0.0, 0.95));
+        draw_rectangle(x, y + h - 10.0, w, 4.0, Color::new(1.0, 0.85, 0.0, 0.95));
+        draw_rectangle_lines(x, y, w, h, 2.0, YELLOW);
+        draw_text("TNT", sp.x - 10.5, sp.y + 4.0, 12.0, WHITE);
     }
 }

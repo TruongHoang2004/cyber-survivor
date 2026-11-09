@@ -100,11 +100,25 @@ impl BattlefieldStructure for EnergyBarricadeStructure {
     }
 
     fn draw_custom(&self, body: &StructureBody, sp: Vec2) {
-        let shield_r = body.radius + (self.pulse.sin() * 2.5);
-        draw_circle(sp.x, sp.y, shield_r, Color::new(0.0, 0.75, 1.0, 0.18));
-        draw_poly(sp.x, sp.y, 6, body.radius, 0.0, Color::new(0.08, 0.18, 0.28, 0.95));
-        draw_poly_lines(sp.x, sp.y, 6, body.radius, 0.0, 2.5, body.color);
-        draw_circle_lines(sp.x, sp.y, shield_r + 4.0, 1.5, Color::new(0.0, 0.95, 1.0, 0.55));
+        let pulse_w = (self.pulse.sin()) * 2.0;
+        // Lô cốt tường chắn chữ H bọc thép (Armored Bunker Bastion)
+        let w = body.radius * 2.1;
+        let h = body.radius * 1.45;
+        let x = sp.x - w / 2.0;
+        let y = sp.y - h / 2.0;
+        draw_rectangle(
+            x - 4.0 - pulse_w,
+            y - 4.0 - pulse_w,
+            w + 8.0 + pulse_w * 2.0,
+            h + 8.0 + pulse_w * 2.0,
+            Color::new(0.0, 0.78, 1.0, 0.18),
+        );
+        draw_rectangle(x, y, w, h, Color::new(0.08, 0.16, 0.26, 0.96));
+        draw_rectangle_lines(x, y, w, h, 2.5, body.color);
+        // Hai trụ góc lô cốt & khe bắn năng lượng
+        draw_rectangle(x - 3.0, y - 3.0, 9.0, h + 6.0, body.color);
+        draw_rectangle(x + w - 6.0, y - 3.0, 9.0, h + 6.0, body.color);
+        draw_line(x + 8.0, sp.y, x + w - 8.0, sp.y, 3.0, WHITE);
     }
 
     fn blocks_enemy_projectiles(&self) -> bool {
@@ -187,19 +201,21 @@ impl BattlefieldStructure for RadarOutpostStructure {
 
     fn draw_custom(&self, body: &StructureBody, sp: Vec2) {
         let ring_col = if self.captured {
-            Color::new(1.0, 0.84, 0.0, 0.35)
+            Color::new(1.0, 0.84, 0.0, 0.4)
         } else {
-            Color::new(0.0, 0.9, 1.0, 0.28)
+            Color::new(0.0, 0.9, 1.0, 0.32)
         };
 
-        // Vòng tròn vùng chiếm đóng
-        draw_circle(
+        // Vùng chiếm đóng hình Bát Giác Chiến Thuật
+        draw_poly(
             sp.x,
             sp.y,
+            8,
             self.capture_radius * self.progress.max(0.12),
-            Color::new(ring_col.r, ring_col.g, ring_col.b, 0.09),
+            22.5,
+            Color::new(ring_col.r, ring_col.g, ring_col.b, 0.08),
         );
-        draw_circle_lines(sp.x, sp.y, self.capture_radius, 2.0, ring_col);
+        draw_poly_lines(sp.x, sp.y, 8, self.capture_radius, 22.5, 2.0, ring_col);
 
         if !self.captured {
             draw_text(
@@ -211,20 +227,19 @@ impl BattlefieldStructure for RadarOutpostStructure {
             );
         }
 
-        // Thân tháp Radar
-        draw_poly(sp.x, sp.y, 8, body.radius, 0.0, Color::new(0.1, 0.14, 0.22, 0.96));
-        draw_poly_lines(sp.x, sp.y, 8, body.radius, 0.0, 2.0, body.color);
+        // Bệ tháp Radar hình vuông có 4 chân trụ góc
+        let r = body.radius;
+        draw_rectangle(sp.x - r, sp.y - r, r * 2.0, r * 2.0, Color::new(0.08, 0.12, 0.2, 0.96));
+        draw_rectangle_lines(sp.x - r, sp.y - r, r * 2.0, r * 2.0, 2.5, body.color);
 
-        // Chảo phát sóng xoay tròn
+        // Chảo thu phát sóng Vệ Tinh chữ V xoay tròn
         let dish_dir = vec2(self.radar_angle.cos(), self.radar_angle.sin());
-        draw_line(
-            sp.x,
-            sp.y,
-            sp.x + dish_dir.x * (body.radius + 8.0),
-            sp.y + dish_dir.y * (body.radius + 8.0),
-            3.5,
-            WHITE,
-        );
+        let perp = vec2(-dish_dir.y, dish_dir.x);
+        let tip = sp + dish_dir * (r + 9.0);
+        let dish_l = sp + dish_dir * 4.0 + perp * 12.0;
+        let dish_r = sp + dish_dir * 4.0 - perp * 12.0;
+        draw_line(dish_l.x, dish_l.y, dish_r.x, dish_r.y, 3.5, body.color);
+        draw_line(sp.x, sp.y, tip.x, tip.y, 3.0, WHITE);
     }
 }
 
@@ -254,13 +269,13 @@ impl BattlefieldStructure for NanoRepairPylonStructure {
 
     fn draw_custom(&self, body: &StructureBody, sp: Vec2) {
         let wave_r = self.aura_radius * (0.88 + 0.12 * self.pulse.sin());
-        draw_circle(sp.x, sp.y, wave_r, Color::new(0.1, 1.0, 0.55, 0.08));
-        draw_circle_lines(sp.x, sp.y, self.aura_radius, 1.5, Color::new(0.1, 1.0, 0.55, 0.4));
+        draw_poly(sp.x, sp.y, 6, wave_r, self.pulse * 12.0, Color::new(0.1, 1.0, 0.55, 0.07));
+        draw_poly_lines(sp.x, sp.y, 6, self.aura_radius, 0.0, 1.8, Color::new(0.1, 1.0, 0.55, 0.45));
 
-        draw_circle(sp.x, sp.y, body.radius, Color::new(0.06, 0.22, 0.15, 0.95));
-        draw_circle_lines(sp.x, sp.y, body.radius, 2.0, body.color);
-        // Chữ thập hồi máu ở tâm
-        draw_rectangle(sp.x - 3.0, sp.y - 10.0, 6.0, 20.0, body.color);
-        draw_rectangle(sp.x - 10.0, sp.y - 3.0, 20.0, 6.0, body.color);
+        // Đài hồi phục hình Chữ Thập Lớn bọc viền lục giác (không dùng hình tròn)
+        draw_poly(sp.x, sp.y, 6, body.radius + 2.0, 30.0, Color::new(0.05, 0.2, 0.14, 0.96));
+        draw_poly_lines(sp.x, sp.y, 6, body.radius + 2.0, 30.0, 2.2, body.color);
+        draw_rectangle(sp.x - 4.5, sp.y - 13.0, 9.0, 26.0, body.color);
+        draw_rectangle(sp.x - 13.0, sp.y - 4.5, 26.0, 9.0, body.color);
     }
 }

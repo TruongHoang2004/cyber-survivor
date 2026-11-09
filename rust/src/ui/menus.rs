@@ -515,6 +515,7 @@ pub fn draw_start_menu(
         ("[1][2][3] (Menu)", "Chon 1 trong 3 Chuyen Gia truoc tran"),
         ("[W][A][S][D]", "Di chuyen chien thuat 8 huong"),
         ("[CHUOT TRAI / PHAI]", "Ban vu khi / Chem dao day lui"),
+        ("[TAB] / [V]", "Chuyen Che Do Ngam Thong Minh / Tu Dong Ban"),
         ("[SPACE] / [SHIFT]", "Dash / Phase Blink / Bullet Time"),
         ("[1] .. [7]", "Chuyen 7 loai vu khi (Lv.3 -> Tien Hoa EVO)"),
         ("[F]", "Nhat hinh chieu Sung roi tren mat dat"),
@@ -626,7 +627,7 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
     let cx = screen_width() / 2.0;
     let cy = screen_height() / 2.0;
     let mw = 840.0;
-    let mh = 670.0;
+    let mh = 720.0;
     let mx = cx - mw / 2.0;
     let my = cy - mh / 2.0;
 
@@ -636,21 +637,21 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
     draw_text(
         "TUY CHINH CAI DAT AM THANH, HINH ANH & CHIEN TRUONG",
         mx + 28.0,
-        my + 38.0,
+        my + 36.0,
         24.0,
         Color::new(0.0, 0.95, 1.0, 1.0),
     );
     draw_text(
         "Keo thanh truot hoac bam [-] / [+] (Tu dong luu ra file khi dong):",
         mx + 28.0,
-        my + 60.0,
+        my + 56.0,
         14.0,
         Color::new(0.7, 0.82, 0.95, 1.0),
     );
 
     let row_x = mx + 28.0;
     let row_w = mw - 56.0;
-    let mut cur_y = my + 72.0;
+    let mut cur_y = my + 66.0;
 
     // 1. Âm lượng tổng (Master Volume)
     draw_slider_row(
@@ -665,7 +666,7 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
         0.10,
         Some("TAT 0%"),
     );
-    cur_y += 65.0;
+    cur_y += 63.0;
 
     // 2. Độ rung màn hình (Screen Shake)
     draw_slider_row(
@@ -680,7 +681,7 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
         0.05,
         Some("TAT 0%"),
     );
-    cur_y += 65.0;
+    cur_y += 63.0;
 
     // 3. Mật độ hiệu ứng nổ (Particle Density)
     draw_slider_row(
@@ -695,7 +696,7 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
         0.10,
         None,
     );
-    cur_y += 65.0;
+    cur_y += 63.0;
 
     // 4. Độ sáng lưới nền (Arena Grid)
     draw_slider_row(
@@ -710,7 +711,7 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
         0.10,
         Some("TAT 0%"),
     );
-    cur_y += 65.0;
+    cur_y += 63.0;
 
     // 5. Quy mô đàn quái (Swarm Scale)
     draw_slider_row(
@@ -725,10 +726,44 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
         0.25,
         None,
     );
-    cur_y += 67.0;
+    cur_y += 64.0;
 
-    // Hai cột cho 4 nút Toggle bên dưới
+    // Hai cột cho 6 nút Toggle bên dưới (gồm cả Hỗ Trợ Nhắm Bắn & Tự Động Bắn)
     let half_w = (row_w - 16.0) / 2.0;
+
+    // Nút chọn chế độ Hỗ Trợ Nhắm Bắn (3 chế độ: Manual / Smart Magnetic / Full 360 Auto)
+    let mut smart_aim_active = settings.aim_assist_mode > 0;
+    let aim_btn_label = match settings.aim_assist_mode {
+        0 => "THU CONG (0%)",
+        1 => "NAM CHAM THONG MINH",
+        _ => "TU DONG 360 DO",
+    };
+    let prev_smart = smart_aim_active;
+    draw_toggle_row(
+        row_x,
+        cur_y,
+        half_w,
+        "HO TRO NHAM BAN [TAB]",
+        "Khoa muc tieu & dan tu be lai vao quai",
+        &mut smart_aim_active,
+        aim_btn_label,
+        aim_btn_label,
+    );
+    if smart_aim_active != prev_smart {
+        settings.aim_assist_mode = (settings.aim_assist_mode + 1) % 3;
+    }
+
+    draw_toggle_row(
+        row_x + half_w + 16.0,
+        cur_y,
+        half_w,
+        "TU DONG BOP CO [PHIM V]",
+        "Tu dong xa dan khi da khoa muc tieu",
+        &mut settings.auto_fire,
+        "DANG BAT [V]",
+        "DANG TAT [V]",
+    );
+    cur_y += 59.0;
 
     draw_toggle_row(
         row_x,
@@ -750,7 +785,7 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
         "TU DONG + [F]",
         "CHI BAM [F]",
     );
-    cur_y += 61.0;
+    cur_y += 59.0;
 
     draw_toggle_row(
         row_x,
@@ -772,7 +807,7 @@ pub fn draw_settings_modal(settings: &mut GameSettings) -> bool {
         "DANG BAT",
         "DANG TAT",
     );
-    cur_y += 66.0;
+    cur_y += 62.0;
 
     // Hàng nút dưới cùng: Khôi phục mặc định & Lưu/Đóng
     if draw_tactical_button(

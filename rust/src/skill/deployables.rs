@@ -97,22 +97,25 @@ impl Deployable {
         match self {
             Deployable::AutoTurret { pos, angle, .. } => {
                 let sp = *pos + cam_offset;
-                draw_circle(sp.x, sp.y, 14.0, Color::new(0.12, 0.16, 0.24, 1.0));
-                draw_circle_lines(sp.x, sp.y, 14.0, 2.0, Color::new(0.0, 0.94, 1.0, 1.0));
+                // Chân đế chữ X cố định trên mặt đất
+                draw_line(sp.x - 13.0, sp.y - 13.0, sp.x + 13.0, sp.y + 13.0, 3.5, Color::new(0.3, 0.4, 0.55, 1.0));
+                draw_line(sp.x + 13.0, sp.y - 13.0, sp.x - 13.0, sp.y + 13.0, 3.5, Color::new(0.3, 0.4, 0.55, 1.0));
+
+                // Tháp pháo vuông xoay + 2 nòng súng song song
                 let dir = vec2(angle.cos(), angle.sin());
-                draw_line(
-                    sp.x,
-                    sp.y,
-                    sp.x + dir.x * 18.0,
-                    sp.y + dir.y * 18.0,
-                    4.0,
-                    Color::new(0.6, 0.7, 0.8, 1.0),
-                );
+                let perp = vec2(-dir.y, dir.x) * 4.5;
+                for side in [-1.0f32, 1.0] {
+                    let b_start = sp + perp * side;
+                    let b_end = b_start + dir * 20.0;
+                    draw_line(b_start.x, b_start.y, b_end.x, b_end.y, 3.5, Color::new(0.75, 0.88, 1.0, 1.0));
+                }
+                draw_poly(sp.x, sp.y, 4, 12.0, angle * 57.3 + 45.0, Color::new(0.1, 0.18, 0.28, 1.0));
+                draw_poly_lines(sp.x, sp.y, 4, 12.0, angle * 57.3 + 45.0, 2.0, Color::new(0.0, 0.94, 1.0, 1.0));
             }
             Deployable::ClusterGrenade { pos, radius, .. } => {
                 let sp = *pos + cam_offset;
-                draw_circle(sp.x, sp.y, *radius, Color::new(1.0, 0.2, 0.27, 1.0));
-                draw_circle_lines(sp.x, sp.y, *radius, 1.5, WHITE);
+                draw_poly(sp.x, sp.y, 6, *radius + 2.0, 0.0, Color::new(1.0, 0.25, 0.2, 1.0));
+                draw_poly_lines(sp.x, sp.y, 6, *radius + 2.0, 0.0, 1.5, YELLOW);
             }
         }
     }

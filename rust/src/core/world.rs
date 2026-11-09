@@ -58,6 +58,7 @@ pub struct GameWorld {
     pub enemies_spawned: u32,
     pub spawn_timer: f32,
     pub current_upgrade_choices: Vec<UpgradeOption>,
+    pub locked_target_pos: Option<Vec2>,
 }
 
 impl GameWorld {
@@ -100,6 +101,7 @@ impl GameWorld {
             enemies_spawned: 0,
             spawn_timer: 0.0,
             current_upgrade_choices: Vec::new(),
+            locked_target_pos: None,
         };
         world.populate_battlefield_props();
         world
@@ -118,23 +120,14 @@ impl GameWorld {
 
     pub fn populate_battlefield_props(&mut self) {
         let center = self.player.body.pos;
-        // 1. Thả sẵn 2 Khoang Tiếp Tế Vũ Khí ngay gần người chơi khi bắt đầu
-        for (i, offset) in [vec2(-130.0, -70.0), vec2(130.0, -70.0)].iter().enumerate() {
-            let wid = if i == 0 {
-                rand::gen_range(1, 4) // Shotgun, Minigun, Tesla
-            } else {
-                rand::gen_range(4, 7) // Railgun, Singularity, RPG
-            };
+        // 1. Chỉ thả 1 Khoang Tiếp Tế Vũ Khí khởi đầu ở Wave 1 (tránh rơi quá nhiều súng)
+        if self.wave == 1 && self.weapon_drops.is_empty() {
             self.events.push(Box::new(SupplyPodDropEvent {
-                landing_pos: center + *offset,
+                landing_pos: center + vec2(0.0, -95.0),
                 timer: 0.0,
-                max_time: 0.9 + (i as f32) * 0.25,
-                weapon_id: wid,
-                rarity: if i == 1 {
-                    WeaponRarity::Epic
-                } else {
-                    WeaponRarity::Rare
-                },
+                max_time: 0.9,
+                weapon_id: rand::gen_range(1, 5),
+                rarity: WeaponRarity::Rare,
             }));
         }
 
@@ -675,12 +668,39 @@ impl GameWorld {
             self.screen_shake = (self.screen_shake - dt * 26.0).max(0.0);
         }
 
-        // Aiming
+        // Aiming + Hệ thống Hỗ Trợ Nhắm Bắn Thông Minh (Smart Aim Assist & Auto-Lock)
+        if is_key_pressed(KeyCode::Tab) {
+            self.settings.aim_assist_mode = (self.settings.aim_assist_mode + 1) % 3;
+            self.settings.save_to_disk();
+            self.float_texts.push(FloatText {
+                pos: self.player.body.pos - vec2(0.0, 42.0),
+                text: format!("CHE DO NGAM [TAB]: {}", self.settings.aim_mode_label()),
+                color: Color::new(0.0, 1.0, 0.75, 1.0),
+                size: 21.0,
+                life: 1.4,
+            });
+        }
+        if is_key_pressed(KeyCode::V) {
+            self.settings.auto_fire = !self.settings.auto_fire;
+            self.settings.save_to_disk();
+            self.float_texts.push(FloatText {
+                pos: self.player.body.pos - vec2(0.0, 42.0),
+                text: format!(
+                    "TU DONG BAN [V]: {}",
+                    if self.settings.auto_fire { "BAT (ON)" } else { "TAT (OFF)" }
+                ),
+                color: Color::new(1.0, 0.85, 0.1, 1.0),
+                size: 21.0,
+                life: 1.3,
+            });
+        }
+
         let mouse_screen = vec2(mouse_position().0, mouse_position().1);
         let mouse_world = mouse_screen + self.camera_pos
             - vec2(screen_width() / 2.0, screen_height() / 2.0);
-        self.player.body.angle =
-            (mouse_world.y - self.player.body.pos.y).atan2(mouse_world.x - self.player.body.pos.x);
+        let (assisted_angle, locked_pos) = self.compute_smart_aim(mouse_world);
+        self.player.body.angle = assisted_angle;
+        self.locked_target_pos = locked_pos;
 
         // Commander Instant Hotkeys: [G] Drop Supply Pod, [B] Summon Colossus Boss
         if is_key_pressed(KeyCode::G) {
@@ -797,11 +817,13 @@ impl GameWorld {
             self.perform_melee();
         }
 
-        // Weapon Firing (Left Click)
+        // Weapon Firing (Left Click hoặc Tự động bắn Auto-Fire [V] khi đã khóa mục tiêu)
         if self.player.fire_timer > 0.0 {
             self.player.fire_timer -= dt;
         }
-        if is_mouse_button_down(MouseButton::Left)
+        let wants_fire = is_mouse_button_down(MouseButton::Left)
+            || (self.settings.auto_fire && self.locked_target_pos.is_some());
+        if wants_fire
             && self.player.fire_timer <= 0.0
             && !self.player.reload_state.is_reloading
         {
@@ -855,9 +877,33 @@ impl GameWorld {
         self.barrels.retain(|b| b.hp > 0.0);
         self.flush_commands(barrel_ctx.commands);
 
-        // Update Player Projectiles
+        // Update Player Projectiles (kèm cơ chế Bullet Magnetism tự bẻ lái nhẹ vào quái khi bật Aim Assist)
         let mut proj_ctx = self.make_context();
+        let assist_magnet = self.settings.aim_assist_mode >= 1;
         for b in self.player_projectiles.iter_mut() {
+            if assist_magnet && !b.spawns_black_hole {
+                let spd = b.vel.length();
+                if spd > 10.0 {
+                    let b_dir = b.vel / spd;
+                    let mut best_dir = None;
+                    let mut best_dist = 95.0f32;
+                    for e in &self.enemies {
+                        let to_e = e.body.pos - b.pos;
+                        let d = to_e.length();
+                        if d < best_dist && d > 1.0 {
+                            let dir_e = to_e / d;
+                            if b_dir.dot(dir_e) > 0.72 {
+                                best_dist = d;
+                                best_dir = Some(dir_e);
+                            }
+                        }
+                    }
+                    if let Some(target_dir) = best_dir {
+                        let new_dir = (b_dir + target_dir * (6.5 * sim_dt)).normalize_or_zero();
+                        b.vel = new_dir * spd;
+                    }
+                }
+            }
             b.pos += b.vel * sim_dt;
             b.life -= sim_dt;
 
@@ -1303,8 +1349,11 @@ impl GameWorld {
                     .on_enemy_killed(&mut self.player.body, &mut death_ctx);
                 dead.behavior.on_death(&dead.body, &mut death_ctx);
 
-                // Tỉ lệ 9% quái thường cũng rơi ra Súng trên chiến trường
-                if !dead.body.is_boss && rand::gen_range(0.0, 1.0) < 0.09 {
+                // Giảm mạnh tỉ lệ rơi súng của quái thường xuống 1.5% và giới hạn tối đa 4 súng nằm trên đất
+                if !dead.body.is_boss
+                    && self.weapon_drops.len() < 4
+                    && rand::gen_range(0.0, 1.0) < 0.015
+                {
                     death_ctx.spawn_weapon_drop(WeaponDrop::new(
                         dead.body.pos,
                         rand::gen_range(1, 7),
@@ -1419,6 +1468,75 @@ impl GameWorld {
             .retain(|p| (p.pos - p_pos).length() >= p.radius + p_rad);
     }
 
+    /// Tính toán góc ngắm thông minh (Aim Assist / Auto-Aim) và vị trí mục tiêu đang bị khóa tâm
+    fn compute_smart_aim(&self, mouse_world: Vec2) -> (f32, Option<Vec2>) {
+        let p_pos = self.player.body.pos;
+        let raw_angle = (mouse_world.y - p_pos.y).atan2(mouse_world.x - p_pos.x);
+
+        if self.settings.aim_assist_mode == 0 || self.enemies.is_empty() {
+            return (raw_angle, None);
+        }
+
+        let raw_dir = vec2(raw_angle.cos(), raw_angle.sin());
+        let max_range = 720.0f32;
+        let mut best_target: Option<(Vec2, Vec2)> = None;
+        let mut best_score = f32::MAX;
+
+        for e in &self.enemies {
+            // Ưu tiên kiểm tra cả các Bộ Phận Boss (BossPart) lẫn thân quái
+            let mut candidates = vec![(e.body.pos, e.body.vel)];
+            for part in &e.body.parts {
+                candidates.push((e.body.pos + part.offset, e.body.vel));
+            }
+
+            for (t_pos, t_vel) in candidates {
+                let to_t = t_pos - p_pos;
+                let dist = to_t.length();
+                if dist > max_range || dist < 1.0 {
+                    continue;
+                }
+                let dir_t = to_t / dist;
+                let dot = raw_dir.dot(dir_t);
+                let cursor_dist = (t_pos - mouse_world).length();
+
+                if self.settings.aim_assist_mode == 1 {
+                    // Chế độ 1 (SMART MAGNETIC AIM): Khóa mục tiêu trong góc nón ~55 độ quanh hướng chuột,
+                    // hoặc gần con trỏ chuột (<170px), hoặc quái áp sát nguy hiểm (<190px)
+                    let in_cone = dot >= 0.57;
+                    let near_cursor = cursor_dist <= 170.0;
+                    let close_danger = dist <= 190.0 && dot >= -0.15;
+
+                    if in_cone || near_cursor || close_danger {
+                        let angle_penalty = (1.0 - dot).max(0.0) * 420.0;
+                        let score = dist * 0.55 + cursor_dist * 0.45 + angle_penalty;
+                        if score < best_score {
+                            best_score = score;
+                            best_target = Some((t_pos, t_vel));
+                        }
+                    }
+                } else {
+                    // Chế độ 2 (FULL 360 AUTO-AIM): Tự động khóa mục tiêu nguy hiểm/gần nhất 360 độ
+                    let dir_bonus = (1.0 - dot) * 85.0;
+                    let score = dist + dir_bonus;
+                    if score < best_score {
+                        best_score = score;
+                        best_target = Some((t_pos, t_vel));
+                    }
+                }
+            }
+        }
+
+        if let Some((t_pos, t_vel)) = best_target {
+            let dist = (t_pos - p_pos).length();
+            // Dự đoán hướng di chuyển của mục tiêu (Target Velocity Leading)
+            let lead_pos = t_pos + t_vel * (dist / 1150.0).min(0.24);
+            let aim_angle = (lead_pos.y - p_pos.y).atan2(lead_pos.x - p_pos.x);
+            (aim_angle, Some(t_pos))
+        } else {
+            (raw_angle, None)
+        }
+    }
+
     pub fn render_world(&self) -> bool {
         clear_background(Color::new(0.05, 0.06, 0.08, 1.0));
 
@@ -1502,16 +1620,56 @@ impl GameWorld {
             ally.draw(cam_offset, self.settings.show_ally_bars);
         }
 
-        // Pickups
+        // Pickups (Vẽ biểu tượng đặc trưng rõ ràng cho từng loại vật phẩm - Không dùng hình tròn!)
         for p in &self.pickups {
             let sp = p.pos + cam_offset;
-            let col = match p.pickup_type {
-                PickupType::Medkit => Color::new(1.0, 0.2, 0.2, 1.0),
-                PickupType::Ammo => Color::new(1.0, 0.84, 0.0, 1.0),
-                PickupType::Nuke => Color::new(1.0, 0.5, 0.0, 1.0),
-                PickupType::Overcharge => Color::new(0.0, 0.94, 1.0, 1.0),
-            };
-            draw_circle(sp.x, sp.y, p.radius, col);
+            let bob = p.pulse.sin() * 2.5;
+            let py = sp.y + bob;
+            match p.pickup_type {
+                PickupType::Medkit => {
+                    // Hộp Cứu Thương Quân Y: Hộp vuông trắng viền xanh lá + Chữ thập Đỏ/Xanh nổi bật
+                    draw_rectangle(sp.x - 11.0, py - 9.0, 22.0, 18.0, Color::new(0.92, 0.98, 0.94, 0.96));
+                    draw_rectangle_lines(sp.x - 11.0, py - 9.0, 22.0, 18.0, 2.0, Color::new(0.0, 0.95, 0.45, 1.0));
+                    draw_rectangle(sp.x - 2.5, py - 6.0, 5.0, 12.0, Color::new(0.95, 0.15, 0.25, 1.0));
+                    draw_rectangle(sp.x - 6.0, py - 2.5, 12.0, 5.0, Color::new(0.95, 0.15, 0.25, 1.0));
+                }
+                PickupType::Ammo => {
+                    // Hòm Đạn Tiếp Tế: Thùng chữ nhật vàng đồng + 3 viên đạn nhọn xếp dọc
+                    draw_rectangle(sp.x - 12.0, py - 9.0, 24.0, 18.0, Color::new(0.24, 0.18, 0.05, 0.96));
+                    draw_rectangle_lines(sp.x - 12.0, py - 9.0, 24.0, 18.0, 2.0, GOLD);
+                    for bx_off in [-5.5f32, 0.0, 5.5] {
+                        draw_rectangle(sp.x + bx_off - 1.5, py - 3.0, 3.0, 8.0, GOLD);
+                        draw_triangle(
+                            vec2(sp.x + bx_off, py - 7.0),
+                            vec2(sp.x + bx_off - 1.8, py - 3.0),
+                            vec2(sp.x + bx_off + 1.8, py - 3.0),
+                            WHITE,
+                        );
+                    }
+                }
+                PickupType::Nuke => {
+                    // Đầu Đạn Hạt Nhân: Hình quả tên lửa cánh đuôi hướng lên + nhãn NUKE
+                    draw_triangle(
+                        vec2(sp.x, py - 14.0),
+                        vec2(sp.x - 8.0, py + 6.0),
+                        vec2(sp.x + 8.0, py + 6.0),
+                        Color::new(1.0, 0.45, 0.0, 1.0),
+                    );
+                    draw_triangle_lines(
+                        vec2(sp.x, py - 14.0),
+                        vec2(sp.x - 8.0, py + 6.0),
+                        vec2(sp.x + 8.0, py + 6.0),
+                        2.0,
+                        YELLOW,
+                    );
+                    draw_rectangle(sp.x - 11.0, py + 5.0, 22.0, 4.0, RED);
+                }
+                PickupType::Overcharge => {
+                    // Lõi Năng Lượng Cường Hóa: Ngôi sao 4 cánh pha lê điện xoay
+                    draw_poly(sp.x, py, 4, 13.0, p.pulse * 25.0, Color::new(0.0, 0.94, 1.0, 0.92));
+                    draw_poly(sp.x, py, 4, 10.0, p.pulse * 25.0 + 45.0, WHITE);
+                }
+            }
         }
 
         // Battlefield Events (Black Holes, Orbital Lasers, Carpet Bombs, Telegraphs, Lightning Arcs)
@@ -1523,10 +1681,12 @@ impl GameWorld {
         for p in &self.particles {
             let sp = p.pos + cam_offset;
             let alpha = (p.life / p.max_life).clamp(0.0, 1.0);
-            draw_circle(
+            draw_poly(
                 sp.x,
                 sp.y,
+                4,
                 p.radius,
+                p.life * 180.0,
                 Color::new(p.color.r, p.color.g, p.color.b, alpha),
             );
         }
@@ -1536,42 +1696,174 @@ impl GameWorld {
             e.draw(cam_offset);
         }
 
-        // Player
+        // Vẽ Tia Laser Ngắm & Khung Khóa Mục Tiêu (Target Lock-On Reticle) khi Aim Assist khóa mục tiêu!
         let p_sp = self.player.body.pos + cam_offset;
-        if self.player.body.shield > 0.0 {
-            draw_circle_lines(
-                p_sp.x,
-                p_sp.y,
-                self.player.body.radius + 4.0,
-                2.0,
-                Color::new(0.0, 0.94, 1.0, 0.5),
+        let gun_dir = vec2(self.player.body.angle.cos(), self.player.body.angle.sin());
+        let gun_right = vec2(-gun_dir.y, gun_dir.x);
+
+        if let Some(lock_world) = self.locked_target_pos {
+            let lock_sp = lock_world + cam_offset;
+            // Tia Laser dẫn đường từ mũi súng tới mục tiêu đang khóa
+            draw_line(
+                p_sp.x + gun_dir.x * 22.0,
+                p_sp.y + gun_dir.y * 22.0,
+                lock_sp.x,
+                lock_sp.y,
+                1.6,
+                Color::new(0.0, 1.0, 0.65, 0.35),
+            );
+
+            // Khung khóa mục tiêu 4 góc [ + ] xoay quanh mục tiêu
+            let bracket_r = 22.0 + ((get_time() as f32) * 8.0).sin() * 3.0;
+            let b_col = Color::new(0.0, 1.0, 0.65, 0.95);
+            let corner_len = 8.0;
+            for (sx, sy) in [(-1.0f32, -1.0f32), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)] {
+                let cx = lock_sp.x + sx * bracket_r;
+                let cy = lock_sp.y + sy * bracket_r;
+                draw_line(cx, cy, cx - sx * corner_len, cy, 2.5, b_col);
+                draw_line(cx, cy, cx, cy - sy * corner_len, 2.5, b_col);
+            }
+            draw_poly_lines(
+                lock_sp.x,
+                lock_sp.y,
+                4,
+                12.0,
+                (get_time() as f32) * 90.0,
+                1.8,
+                Color::new(1.0, 0.9, 0.1, 0.9),
+            );
+        } else {
+            // Tia ngắm laser ngắn khi ngắm thủ công
+            draw_line(
+                p_sp.x + gun_dir.x * 22.0,
+                p_sp.y + gun_dir.y * 22.0,
+                p_sp.x + gun_dir.x * 160.0,
+                p_sp.y + gun_dir.y * 160.0,
+                1.2,
+                Color::new(0.0, 0.94, 1.0, 0.22),
             );
         }
-        draw_circle(
+
+        // Player (Mô hình Chiến Binh Giáp Cơ Khí Top-Down có Ba-lô Phản Lực, Cầu Vai Giáp, Mũ Visor & Vũ Khí)
+        if self.player.body.shield > 0.0 {
+            draw_poly_lines(
+                p_sp.x,
+                p_sp.y,
+                6,
+                self.player.body.radius + 6.0,
+                self.player.body.angle * 57.3,
+                2.0,
+                Color::new(0.0, 0.94, 1.0, 0.55),
+            );
+        }
+        let class_accent = match self.selected_class_id {
+            1 => Color::new(0.82, 0.35, 1.0, 1.0),
+            2 => Color::new(1.0, 0.82, 0.15, 1.0),
+            _ => Color::new(0.0, 0.94, 1.0, 1.0),
+        };
+        // Ba-lô phản lực (Jetpack Thrusters) phía lưng
+        let back_center = p_sp - gun_dir * 11.0;
+        for side in [-1.0f32, 1.0] {
+            let jet = back_center + gun_right * (side * 6.5);
+            draw_poly(jet.x, jet.y, 4, 4.5, self.player.body.angle * 57.3, Color::new(0.2, 0.28, 0.38, 1.0));
+            if self.player.body.is_dashing {
+                let flame = jet - gun_dir * 12.0;
+                draw_line(jet.x, jet.y, flame.x, flame.y, 4.0, Color::new(0.0, 0.95, 1.0, 0.9));
+            }
+        }
+        // Hai cầu vai thiết giáp mở rộng hai bên
+        for side in [-1.0f32, 1.0] {
+            let shoulder = p_sp + gun_right * (side * 12.5) - gun_dir * 1.5;
+            draw_poly(
+                shoulder.x,
+                shoulder.y,
+                4,
+                7.5,
+                self.player.body.angle * 57.3 + 45.0,
+                class_accent,
+            );
+            draw_poly_lines(
+                shoulder.x,
+                shoulder.y,
+                4,
+                7.5,
+                self.player.body.angle * 57.3 + 45.0,
+                1.5,
+                WHITE,
+            );
+        }
+        // Thân giáp chính hình lục giác & Mũ Visor chữ V hướng về phía trước
+        draw_poly(
             p_sp.x,
             p_sp.y,
-            self.player.body.radius,
-            Color::new(0.0, 0.94, 1.0, 1.0),
+            6,
+            11.5,
+            self.player.body.angle * 57.3,
+            Color::new(0.08, 0.14, 0.24, 1.0),
         );
-        draw_circle(p_sp.x, p_sp.y, 8.0, Color::new(0.06, 0.09, 0.16, 1.0));
-        let gun_dir = vec2(self.player.body.angle.cos(), self.player.body.angle.sin());
-        draw_line(
+        draw_poly_lines(
             p_sp.x,
             p_sp.y,
-            p_sp.x + gun_dir.x * 24.0,
-            p_sp.y + gun_dir.y * 24.0,
-            5.0,
-            self.player.current_weapon().stats.rarity.color(),
+            6,
+            11.5,
+            self.player.body.angle * 57.3,
+            2.0,
+            class_accent,
+        );
+        let visor_tip = p_sp + gun_dir * 9.0;
+        let visor_l = p_sp + gun_dir * 2.0 + gun_right * 5.5;
+        let visor_r = p_sp + gun_dir * 2.0 - gun_right * 5.5;
+        draw_triangle(visor_tip, visor_l, visor_r, WHITE);
+
+        // Khẩu súng trên tay thay đổi theo vũ khí đang cầm
+        let w_col = self.player.current_weapon().stats.rarity.color();
+        let gun_base = p_sp + gun_right * 6.0 + gun_dir * 4.0;
+        let gun_tip = gun_base + gun_dir * 22.0;
+        draw_line(gun_base.x, gun_base.y, gun_tip.x, gun_tip.y, 5.5, Color::new(0.2, 0.25, 0.32, 1.0));
+        draw_line(
+            gun_base.x + gun_dir.x * 4.0,
+            gun_base.y + gun_dir.y * 4.0,
+            gun_tip.x,
+            gun_tip.y,
+            3.2,
+            w_col,
         );
 
-        // Projectiles
+        // Projectiles (Vẽ đạn của người chơi dạng Tia Dài / Đầu Đạn Nhọn; đạn quái dạng Thoi Gai Đỏ)
         for b in &self.player_projectiles {
             let sp = b.pos + cam_offset;
-            draw_circle(sp.x, sp.y, b.radius, b.color);
+            if b.spawns_black_hole {
+                draw_poly(sp.x, sp.y, 6, b.radius + 3.0, (get_time() as f32) * 180.0, b.color);
+                draw_poly_lines(sp.x, sp.y, 6, b.radius + 5.0, -(get_time() as f32) * 140.0, 2.0, WHITE);
+            } else if b.explosion_radius.is_some() {
+                // Đạn tên lửa RPG có đầu nhọn và đuôi lửa
+                let dir = b.vel.normalize_or_zero();
+                let right = vec2(-dir.y, dir.x);
+                let nose = sp + dir * 10.0;
+                let tail_l = sp - dir * 7.0 + right * 4.5;
+                let tail_r = sp - dir * 7.0 - right * 4.5;
+                draw_triangle(nose, tail_l, tail_r, b.color);
+                draw_line(sp.x - dir.x * 7.0, sp.y - dir.y * 7.0, sp.x - dir.x * 15.0, sp.y - dir.y * 15.0, 3.5, YELLOW);
+            } else {
+                // Đạn laser / đạn xuyên giáp kéo vệt dài sắc nét
+                let dir = b.vel.normalize_or_zero();
+                let tail = sp - dir * (b.radius * 3.4).max(11.0);
+                let head = sp + dir * 4.0;
+                draw_line(tail.x, tail.y, head.x, head.y, b.radius * 1.45, b.color);
+                draw_line(sp.x - dir.x * 4.0, sp.y - dir.y * 4.0, head.x, head.y, (b.radius * 0.75).max(1.8), WHITE);
+            }
         }
         for eb in &self.enemy_projectiles {
             let sp = eb.pos + cam_offset;
-            draw_circle(sp.x, sp.y, eb.radius, eb.color);
+            let dir = eb.vel.normalize_or_zero();
+            let right = vec2(-dir.y, dir.x);
+            let nose = sp + dir * (eb.radius * 1.45);
+            let back = sp - dir * (eb.radius * 1.1);
+            let side_l = sp + right * (eb.radius * 0.95);
+            let side_r = sp - right * (eb.radius * 0.95);
+            draw_triangle(nose, side_l, side_r, eb.color);
+            draw_triangle(back, side_l, side_r, eb.color);
+            draw_poly(sp.x, sp.y, 4, eb.radius * 0.45, 45.0, WHITE);
         }
 
         // Float Texts

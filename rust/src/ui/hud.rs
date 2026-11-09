@@ -163,12 +163,27 @@ pub fn draw_hud(
         Color::new(0.75, 0.88, 1.0, 1.0),
     );
 
-    let cmd_w = 275.0;
+    let cmd_w = 325.0;
     let rx = settings_btn_x - cmd_w - 10.0;
     draw_rectangle(rx, 20.0, cmd_w, 50.0, Color::new(0.05, 0.07, 0.12, 0.85));
-    draw_rectangle_lines(rx, 20.0, cmd_w, 50.0, 1.0, Color::new(1.0, 0.8, 0.0, 0.4));
-    draw_text("[G] GOI HOM TIEP TE SUNG", rx + 12.0, 40.0, 13.0, Color::new(1.0, 0.85, 0.1, 1.0));
-    draw_text("[B] TRIEU HOI DAI BOSS PHAO DAI", rx + 12.0, 60.0, 13.0, Color::new(1.0, 0.3, 0.4, 1.0));
+    draw_rectangle_lines(rx, 20.0, cmd_w, 50.0, 1.0, Color::new(0.0, 0.95, 0.7, 0.55));
+    draw_text(
+        &format!("[TAB] NGAM: {}", settings.aim_mode_label()),
+        rx + 10.0,
+        39.0,
+        13.0,
+        Color::new(0.0, 1.0, 0.75, 1.0),
+    );
+    draw_text(
+        &format!(
+            "[V] TU DONG BAN: {} | [G] SUNG | [B] BOSS",
+            if settings.auto_fire { "ON" } else { "OFF" }
+        ),
+        rx + 10.0,
+        59.0,
+        12.0,
+        Color::new(1.0, 0.85, 0.15, 1.0),
+    );
 
     // Boss HP Bar
     if let Some((boss_name, hp, max_hp, parts_left)) = active_boss {
