@@ -45,20 +45,30 @@
 
 ## 🚀 Cách chạy game
 
-Game được viết hoàn toàn bằng **HTML5, CSS3 và Vanilla JavaScript**, không cần cài đặt thư viện phụ thuộc (`npm`, `yarn`...).
+### 🦀 Phiên bản Rust Native (Hiệu năng cực cao 60-120+ FPS)
 
-### Cách 1: Mở trực tiếp
-Mở file `index.html` bằng trình duyệt web bất kỳ (Chrome, Edge, Firefox, Safari).
+Dự án có phiên bản viết thuần bằng **Rust** (sử dụng thư viện đồ họa phần cứng OpenGL/Metal `macroquad`):
 
-### Cách 2: Chạy qua HTTP Server cục bộ
+```bash
+cd rust
+
+# Chạy trực tiếp ở chế độ phát triển
+cargo run
+
+# Hoặc build bản tối ưu hóa cao nhất (Release)
+cargo build --release
+./target/release/cyber-survivor-rs
+```
+
+### 🌐 Phiên bản Web (HTML5 Canvas + Web Audio)
+
+Game cũng có phiên bản web hoàn toàn bằng HTML5 & Vanilla JS:
+
 ```bash
 # Sử dụng Python 3
 python3 -m http.server 8080
-
-# Hoặc dùng npx serve
-npx serve .
 ```
-Sau đó truy cập: `http://localhost:8080`
+Sau đó mở trình duyệt tại: `http://localhost:8080` (hoặc chơi trực tuyến trên [GitHub Pages](https://truonghoang2004.github.io/cyber-survivor/)).
 
 ---
 

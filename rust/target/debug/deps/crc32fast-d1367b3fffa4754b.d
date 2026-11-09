@@ -1,0 +1,10 @@
+/Users/truonghoang/.gemini/antigravity/scratch/topdown-shooter/rust/target/debug/deps/crc32fast-d1367b3fffa4754b.d: /Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/lib.rs /Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/baseline.rs /Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/combine.rs /Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/specialized/mod.rs /Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/table.rs /Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/specialized/aarch64.rs
+
+/Users/truonghoang/.gemini/antigravity/scratch/topdown-shooter/rust/target/debug/deps/libcrc32fast-d1367b3fffa4754b.rmeta: /Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/lib.rs /Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/baseline.rs /Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/combine.rs /Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/specialized/mod.rs /Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/table.rs /Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/specialized/aarch64.rs
+
+/Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/lib.rs:
+/Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/baseline.rs:
+/Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/combine.rs:
+/Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/specialized/mod.rs:
+/Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/table.rs:
+/Users/truonghoang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.4/src/specialized/aarch64.rs:
