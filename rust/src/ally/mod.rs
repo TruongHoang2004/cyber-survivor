@@ -39,7 +39,7 @@ impl AlliedEntity {
         self.body.life > 0.0 && self.body.hp > 0.0
     }
 
-    pub fn draw(&self, cam_offset: Vec2) {
+    pub fn draw(&self, cam_offset: Vec2, show_bars: bool) {
         let sp = self.body.pos + cam_offset;
         self.behavior.draw_custom(&self.body, sp);
 
@@ -56,22 +56,24 @@ impl AlliedEntity {
             WHITE,
         );
 
-        let bw = self.body.radius * 2.0;
-        let pct = (self.body.hp / self.body.max_hp.max(1.0)).clamp(0.0, 1.0);
-        draw_rectangle(
-            sp.x - bw / 2.0,
-            sp.y - self.body.radius - 7.0,
-            bw * pct,
-            3.0,
-            Color::new(0.2, 1.0, 0.6, 0.85),
-        );
-        draw_text(
-            self.body.name,
-            sp.x - bw * 0.7,
-            sp.y - self.body.radius - 10.0,
-            11.0,
-            Color::new(0.6, 0.95, 1.0, 0.85),
-        );
+        if show_bars {
+            let bw = self.body.radius * 2.0;
+            let pct = (self.body.hp / self.body.max_hp.max(1.0)).clamp(0.0, 1.0);
+            draw_rectangle(
+                sp.x - bw / 2.0,
+                sp.y - self.body.radius - 7.0,
+                bw * pct,
+                3.0,
+                Color::new(0.2, 1.0, 0.6, 0.85),
+            );
+            draw_text(
+                self.body.name,
+                sp.x - bw * 0.7,
+                sp.y - self.body.radius - 10.0,
+                11.0,
+                Color::new(0.6, 0.95, 1.0, 0.85),
+            );
+        }
     }
 }
 

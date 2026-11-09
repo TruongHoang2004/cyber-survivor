@@ -20,6 +20,8 @@ use crate::weapon::projectile::Projectile;
 
 pub struct GameWorld {
     pub state: GameState,
+    pub settings: GameSettings,
+    pub settings_open: bool,
     pub player: Player,
     pub player_projectiles: Vec<Projectile>,
     pub enemy_projectiles: Vec<Projectile>,
@@ -55,6 +57,8 @@ impl GameWorld {
         let player = Player::new(Box::new(CyberMarine), start_pos);
         let mut world = Self {
             state: GameState::Start,
+            settings: GameSettings::default(),
+            settings_open: false,
             player,
             player_projectiles: Vec::new(),
             enemy_projectiles: Vec::new(),
@@ -85,6 +89,17 @@ impl GameWorld {
         };
         world.populate_battlefield_props();
         world
+    }
+
+    /// Cộng độ rung màn hình đã được giảm chấn mượt theo `settings.screen_shake_intensity`
+    pub fn add_screen_shake(&mut self, raw_amount: f32) {
+        let scale = self.settings.screen_shake_intensity;
+        if scale <= 0.001 {
+            self.screen_shake = 0.0;
+            return;
+        }
+        let max_cap = 7.5 * scale;
+        self.screen_shake = (self.screen_shake + raw_amount * 0.32 * scale).min(max_cap);
     }
 
     pub fn populate_battlefield_props(&mut self) {
@@ -166,7 +181,7 @@ impl GameWorld {
         self.total_kills = 0;
         self.shots_fired = 0;
         self.shots_hit = 0;
-        self.enemies_to_spawn = 45;
+        self.enemies_to_spawn = (45.0 * self.settings.swarm_scale).round() as u32;
         self.enemies_spawned = 0;
         self.spawn_timer = 0.0;
         self.populate_battlefield_props();
@@ -214,7 +229,7 @@ impl GameWorld {
                     radius,
                     damage,
                 } => {
-                    self.screen_shake = (self.screen_shake + 9.0).min(24.0);
+                    self.add_screen_shake(7.0);
                     self.decals.push(Decal {
                         pos,
                         radius: radius * 0.72,
@@ -223,7 +238,8 @@ impl GameWorld {
                         is_damage_zone: false,
                     });
 
-                    for _ in 0..26 {
+                    let count = (26.0 * self.settings.particle_density).round() as usize;
+                    for _ in 0..count {
                         let a = rand::gen_range(0.0, PI * 2.0);
                         let spd = rand::gen_range(60.0, 340.0);
                         self.particles.push(Particle {
@@ -263,13 +279,15 @@ impl GameWorld {
                             let total_dmg = damage * falloff;
                             let kb = (e.body.pos - pos).normalize_or_zero() * 520.0;
                             let dealt = e.take_damage_at(pos, total_dmg, kb, None, &mut sub_ctx);
-                            self.float_texts.push(FloatText {
-                                pos: e.body.pos,
-                                text: format!("{:.0}", dealt),
-                                color: Color::new(1.0, 0.35, 0.15, 1.0),
-                                size: 20.0,
-                                life: 0.75,
-                            });
+                            if self.settings.show_damage_numbers {
+                                self.float_texts.push(FloatText {
+                                    pos: e.body.pos,
+                                    text: format!("{:.0}", dealt),
+                                    color: Color::new(1.0, 0.35, 0.15, 1.0),
+                                    size: 20.0,
+                                    life: 0.75,
+                                });
+                            }
                         }
                     }
                     follow_up_commands.append(&mut sub_ctx.commands);
@@ -297,7 +315,7 @@ impl GameWorld {
                     width,
                     damage,
                 } => {
-                    self.screen_shake += 12.0;
+                    self.add_screen_shake(8.0);
                     let seg = end - start;
                     let seg_len_sq = seg.length_squared().max(1.0);
 
@@ -315,13 +333,15 @@ impl GameWorld {
                         if dist < width + e.body.radius {
                             let kb = seg.normalize_or_zero() * 350.0;
                             let dealt = e.take_damage_at(closest, damage, kb, None, &mut sub_ctx);
-                            self.float_texts.push(FloatText {
-                                pos: e.body.pos,
-                                text: format!("{:.0} RAIL!", dealt),
-                                color: Color::new(0.0, 1.0, 0.9, 1.0),
-                                size: 22.0,
-                                life: 0.85,
-                            });
+                            if self.settings.show_damage_numbers {
+                                self.float_texts.push(FloatText {
+                                    pos: e.body.pos,
+                                    text: format!("{:.0} RAIL!", dealt),
+                                    color: Color::new(0.0, 1.0, 0.9, 1.0),
+                                    size: 22.0,
+                                    life: 0.85,
+                                });
+                            }
                         }
                     }
                     follow_up_commands.append(&mut sub_ctx.commands);
@@ -389,13 +409,15 @@ impl GameWorld {
                                 Some(StatusEffect::Stun { duration: 0.18 }),
                                 &mut sub_ctx,
                             );
-                            self.float_texts.push(FloatText {
-                                pos: target_pos,
-                                text: format!("{:.0} ZAP", dealt),
-                                color: Color::new(0.3, 0.95, 1.0, 1.0),
-                                size: 16.0,
-                                life: 0.65,
-                            });
+                            if self.settings.show_damage_numbers {
+                                self.float_texts.push(FloatText {
+                                    pos: target_pos,
+                                    text: format!("{:.0} ZAP", dealt),
+                                    color: Color::new(0.3, 0.95, 1.0, 1.0),
+                                    size: 16.0,
+                                    life: 0.65,
+                                });
+                            }
                             current_pos = target_pos;
                         } else {
                             break;
@@ -416,13 +438,16 @@ impl GameWorld {
                     }));
                 }
                 WorldCommand::DamagePlayer(dmg) => {
-                    self.screen_shake += self.player.take_damage(dmg);
+                    let shake = self.player.take_damage(dmg);
+                    self.add_screen_shake(shake);
                 }
                 WorldCommand::AddScreenShake(s) => {
-                    self.screen_shake += s;
+                    self.add_screen_shake(s);
                 }
                 WorldCommand::SpawnParticle(p) => {
-                    self.particles.push(p);
+                    if rand::gen_range(0.0, 1.0) <= self.settings.particle_density {
+                        self.particles.push(p);
+                    }
                 }
                 WorldCommand::SpawnDecal(d) => {
                     self.decals.push(d);
@@ -439,25 +464,54 @@ impl GameWorld {
     }
 
     pub fn step(&mut self, dt: f32) {
+        if self.settings_open {
+            if self.state == GameState::Paused {
+                let _ = self.render_world();
+            } else {
+                clear_background(Color::new(0.03, 0.04, 0.07, 1.0));
+            }
+            if draw_settings_modal(&mut self.settings) {
+                self.settings_open = false;
+            }
+            return;
+        }
+
         if is_key_pressed(KeyCode::Escape) || is_key_pressed(KeyCode::P) {
             if self.state == GameState::Playing {
                 self.state = GameState::Paused;
             } else if self.state == GameState::Paused {
                 self.state = GameState::Playing;
             }
+        } else if is_key_pressed(KeyCode::O) && self.state == GameState::Playing {
+            self.state = GameState::Paused;
+            self.settings_open = true;
+            return;
         }
 
         match self.state {
             GameState::Start => {
-                if draw_start_menu(self.player.class.name(), self.player.class.description()) {
-                    self.state = GameState::Playing;
+                match draw_start_menu(
+                    self.player.class.name(),
+                    self.player.class.description(),
+                    &self.settings,
+                ) {
+                    StartMenuAction::StartGame => {
+                        self.enemies_to_spawn =
+                            (45.0 * self.settings.swarm_scale).round() as u32;
+                        self.state = GameState::Playing;
+                    }
+                    StartMenuAction::OpenSettings => {
+                        self.settings_open = true;
+                    }
+                    StartMenuAction::None => {}
                 }
             }
             GameState::Upgrade => {
                 if let Some(chosen_id) = draw_upgrade_menu(&self.current_upgrade_choices) {
                     self.apply_upgrade(chosen_id);
                     self.wave += 1;
-                    self.enemies_to_spawn = 35 + self.wave * 20;
+                    let base_count = (35 + self.wave * 20) as f32;
+                    self.enemies_to_spawn = (base_count * self.settings.swarm_scale).round() as u32;
                     self.enemies_spawned = 0;
                     self.populate_battlefield_props();
                     self.state = GameState::Playing;
@@ -475,12 +529,30 @@ impl GameWorld {
                 }
             }
             GameState::Paused => {
-                self.render_world();
-                draw_pause_menu();
+                let _ = self.render_world();
+                match draw_pause_menu() {
+                    PauseMenuAction::Resume => {
+                        self.state = GameState::Playing;
+                    }
+                    PauseMenuAction::OpenSettings => {
+                        self.settings_open = true;
+                    }
+                    PauseMenuAction::Restart => {
+                        self.reset();
+                    }
+                    PauseMenuAction::MainMenu => {
+                        self.reset();
+                        self.state = GameState::Start;
+                    }
+                    PauseMenuAction::None => {}
+                }
             }
             GameState::Playing => {
                 self.update_playing(dt);
-                self.render_world();
+                if self.render_world() {
+                    self.state = GameState::Paused;
+                    self.settings_open = true;
+                }
             }
         }
     }
@@ -515,7 +587,7 @@ impl GameWorld {
         let sim_dt = dt * time_scale;
 
         if self.screen_shake > 0.0 {
-            self.screen_shake = (self.screen_shake - dt * 15.0).max(0.0);
+            self.screen_shake = (self.screen_shake - dt * 26.0).max(0.0);
         }
 
         // Aiming
@@ -745,13 +817,15 @@ impl GameWorld {
                         let knockback = b.vel.normalize_or_zero() * 65.0;
                         let dealt =
                             e.take_damage_at(b.pos, b.damage, knockback, b.status_effect, &mut proj_ctx);
-                        self.float_texts.push(FloatText {
-                            pos: b.pos,
-                            text: format!("{:.0}", dealt),
-                            color: WHITE,
-                            size: 14.0,
-                            life: 0.55,
-                        });
+                        if self.settings.show_damage_numbers {
+                            self.float_texts.push(FloatText {
+                                pos: b.pos,
+                                text: format!("{:.0}", dealt),
+                                color: WHITE,
+                                size: 14.0,
+                                life: 0.55,
+                            });
+                        }
                         if b.pierce > 0 {
                             b.pierce -= 1;
                         } else {
@@ -811,15 +885,19 @@ impl GameWorld {
         self.update_pickups(dt);
 
         // Update Enemy Projectiles
+        let mut hit_shake = 0.0;
         for eb in self.enemy_projectiles.iter_mut() {
             eb.pos += eb.vel * sim_dt;
             eb.life -= sim_dt;
             if (eb.pos - self.player.body.pos).length() < eb.radius + self.player.body.radius
                 && !self.player.body.is_dashing
             {
-                self.screen_shake += self.player.take_damage(eb.damage);
+                hit_shake += self.player.take_damage(eb.damage);
                 eb.life = 0.0;
             }
+        }
+        if hit_shake > 0.0 {
+            self.add_screen_shake(hit_shake);
         }
         self.enemy_projectiles.retain(|eb| {
             eb.life > 0.0
@@ -883,7 +961,10 @@ impl GameWorld {
             self.weapon_drops[i].bob_phase += dt * 4.5;
             let dist = (self.weapon_drops[i].pos - p_pos).length();
 
-            if dist < 34.0 || (dist < 95.0 && press_f) {
+            let should_pickup =
+                (self.settings.auto_pickup_weapons && dist < 34.0) || (dist < 95.0 && press_f);
+
+            if should_pickup {
                 let drop = self.weapon_drops.swap_remove(i);
                 if drop.weapon_id < self.player.weapons.len() {
                     let w = &mut self.player.weapons[drop.weapon_id];
@@ -903,8 +984,8 @@ impl GameWorld {
                     let w_lvl = w.stats.level;
                     let w_col = w.stats.rarity.color();
 
-                    // Tự động chuyển sang khẩu súng mới vừa mở khóa!
-                    if !was_unlocked {
+                    // Tự động chuyển sang khẩu súng mới vừa mở khóa (nếu cài đặt bật)!
+                    if !was_unlocked && self.settings.auto_equip_new_weapon {
                         self.player.current_weapon_idx = drop.weapon_id;
                         self.player.reload_state.is_reloading = false;
                     }
@@ -1000,7 +1081,7 @@ impl GameWorld {
     }
 
     fn perform_melee(&mut self) {
-        self.screen_shake += 6.0;
+        self.add_screen_shake(4.0);
         let slash_angle = self.player.body.angle;
         let p_pos = self.player.body.pos;
         let mut ctx = self.make_context();
@@ -1027,13 +1108,15 @@ impl GameWorld {
                         Some(StatusEffect::Stun { duration: 0.45 }),
                         &mut ctx,
                     );
-                    self.float_texts.push(FloatText {
-                        pos: e.body.pos,
-                        text: format!("{:.0} SLASH!", dealt),
-                        color: Color::new(1.0, 0.84, 0.0, 1.0),
-                        size: 20.0,
-                        life: 0.8,
-                    });
+                    if self.settings.show_damage_numbers {
+                        self.float_texts.push(FloatText {
+                            pos: e.body.pos,
+                            text: format!("{:.0} SLASH!", dealt),
+                            color: Color::new(1.0, 0.84, 0.0, 1.0),
+                            size: 20.0,
+                            life: 0.8,
+                        });
+                    }
                 }
             }
         }
@@ -1061,7 +1144,7 @@ impl GameWorld {
                 .fire(origin, aim, &stats_clone, &mods, overcharged, &mut ctx);
 
             self.player.fire_timer = fire_rate;
-            self.screen_shake = (self.screen_shake + shake).min(20.0);
+            self.add_screen_shake(shake * 0.5);
             self.shots_fired += 1;
 
             self.casings.push(Casing {
@@ -1145,6 +1228,7 @@ impl GameWorld {
     fn update_pickups(&mut self, dt: f32) {
         let p_pos = self.player.body.pos;
         let p_rad = self.player.body.radius;
+        let mut nuke_shake = 0.0;
 
         for p in self.pickups.iter_mut() {
             p.pulse += dt * 5.0;
@@ -1176,7 +1260,7 @@ impl GameWorld {
                         });
                     }
                     PickupType::Nuke => {
-                        self.screen_shake += 18.0;
+                        nuke_shake += 10.0;
                         for e in self.enemies.iter_mut() {
                             if !e.body.is_boss {
                                 e.body.hp = 0.0;
@@ -1205,39 +1289,47 @@ impl GameWorld {
                 }
             }
         }
+        if nuke_shake > 0.0 {
+            self.add_screen_shake(nuke_shake);
+        }
         self.pickups
             .retain(|p| (p.pos - p_pos).length() >= p.radius + p_rad);
     }
 
-    pub fn render_world(&self) {
+    pub fn render_world(&self) -> bool {
         clear_background(Color::new(0.05, 0.06, 0.08, 1.0));
 
-        let shake_offset = if self.screen_shake > 0.0 {
-            vec2(
-                rand::gen_range(-self.screen_shake, self.screen_shake),
-                rand::gen_range(-self.screen_shake, self.screen_shake),
-            )
-        } else {
-            Vec2::ZERO
-        };
+        // Rung màn hình dạng sóng điều hòa mượt (không nhảy giật ngẫu nhiên gây hoa mắt)
+        let shake_offset =
+            if self.screen_shake > 0.01 && self.settings.screen_shake_intensity > 0.001 {
+                let t = get_time() as f32;
+                vec2(
+                    (t * 42.0).sin() * self.screen_shake,
+                    (t * 53.0).cos() * self.screen_shake,
+                )
+            } else {
+                Vec2::ZERO
+            };
 
         let cam_offset =
             vec2(screen_width() / 2.0, screen_height() / 2.0) - self.camera_pos + shake_offset;
 
         // 1. Arena Grid
-        let grid_size = 80.0;
-        let start_x = (cam_offset.x % grid_size) - grid_size;
-        let start_y = (cam_offset.y % grid_size) - grid_size;
-        let grid_col = Color::new(0.0, 0.8, 1.0, 0.04);
-        let mut x = start_x;
-        while x < screen_width() + grid_size {
-            draw_line(x, 0.0, x, screen_height(), 1.0, grid_col);
-            x += grid_size;
-        }
-        let mut y = start_y;
-        while y < screen_height() + grid_size {
-            draw_line(0.0, y, screen_width(), y, 1.0, grid_col);
-            y += grid_size;
+        if self.settings.grid_opacity > 0.01 {
+            let grid_size = 80.0;
+            let start_x = (cam_offset.x % grid_size) - grid_size;
+            let start_y = (cam_offset.y % grid_size) - grid_size;
+            let grid_col = Color::new(0.0, 0.8, 1.0, 0.08 * self.settings.grid_opacity);
+            let mut x = start_x;
+            while x < screen_width() + grid_size {
+                draw_line(x, 0.0, x, screen_height(), 1.0, grid_col);
+                x += grid_size;
+            }
+            let mut y = start_y;
+            while y < screen_height() + grid_size {
+                draw_line(0.0, y, screen_width(), y, 1.0, grid_col);
+                y += grid_size;
+            }
         }
 
         // Outer Boundary
@@ -1279,7 +1371,7 @@ impl GameWorld {
 
         // Allied Units
         for ally in &self.allies {
-            ally.draw(cam_offset);
+            ally.draw(cam_offset, self.settings.show_ally_bars);
         }
 
         // Pickups
@@ -1374,6 +1466,7 @@ impl GameWorld {
             (self.enemies_to_spawn - self.enemies_spawned) + (self.enemies.len() as u32),
             self.allies.len(),
             active_boss,
-        );
+            &self.settings,
+        )
     }
 }

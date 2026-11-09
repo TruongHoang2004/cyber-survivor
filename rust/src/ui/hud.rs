@@ -1,6 +1,8 @@
 use macroquad::prelude::*;
 use crate::character::player::Player;
+use crate::core::types::GameSettings;
 
+/// Vẽ HUD và trả về `true` nếu người chơi bấm vào nút [CÀI ĐẶT / MENU] trên góc phải màn hình
 pub fn draw_hud(
     player: &Player,
     wave: u32,
@@ -9,7 +11,8 @@ pub fn draw_hud(
     enemies_left: u32,
     allies_count: usize,
     active_boss: Option<(&str, f32, f32, usize)>,
-) {
+    settings: &GameSettings,
+) -> bool {
     // Top Left: Wave, Score, Enemies, Allies
     draw_rectangle(20.0, 20.0, 115.0, 50.0, Color::new(0.05, 0.07, 0.12, 0.85));
     draw_rectangle_lines(20.0, 20.0, 115.0, 50.0, 1.0, Color::new(0.0, 0.94, 1.0, 0.3));
@@ -32,12 +35,59 @@ pub fn draw_hud(
     draw_text("ALLIES", 515.0, 38.0, 15.0, Color::new(0.6, 0.7, 0.8, 1.0));
     draw_text(&format!("{}", allies_count), 515.0, 61.0, 22.0, Color::new(0.2, 1.0, 0.6, 1.0));
 
-    // Top Right: Commander Hotkeys
-    let rx = screen_width() - 340.0;
-    draw_rectangle(rx, 20.0, 320.0, 50.0, Color::new(0.05, 0.07, 0.12, 0.85));
-    draw_rectangle_lines(rx, 20.0, 320.0, 50.0, 1.0, Color::new(1.0, 0.8, 0.0, 0.4));
-    draw_text("[G] GOI HOM TIEP TE SUNG", rx + 12.0, 40.0, 14.0, Color::new(1.0, 0.85, 0.1, 1.0));
-    draw_text("[B] TRIEU HOI DAI BOSS PHAO DAI", rx + 12.0, 60.0, 14.0, Color::new(1.0, 0.3, 0.4, 1.0));
+    // Top Right: Commander Hotkeys + Settings Quick Button
+    let settings_btn_w = 185.0;
+    let settings_btn_x = screen_width() - settings_btn_w - 20.0;
+    let (mx, my) = mouse_position();
+    let hover_settings = mx >= settings_btn_x
+        && mx <= settings_btn_x + settings_btn_w
+        && my >= 20.0
+        && my <= 70.0;
+
+    draw_rectangle(
+        settings_btn_x,
+        20.0,
+        settings_btn_w,
+        50.0,
+        if hover_settings {
+            Color::new(0.0, 0.35, 0.5, 0.95)
+        } else {
+            Color::new(0.05, 0.09, 0.16, 0.9)
+        },
+    );
+    draw_rectangle_lines(
+        settings_btn_x,
+        20.0,
+        settings_btn_w,
+        50.0,
+        1.5,
+        if hover_settings {
+            Color::new(0.0, 1.0, 0.85, 1.0)
+        } else {
+            Color::new(0.0, 0.85, 1.0, 0.5)
+        },
+    );
+    draw_text(
+        "[ESC / O] CAI DAT",
+        settings_btn_x + 14.0,
+        40.0,
+        15.0,
+        Color::new(0.0, 0.95, 1.0, 1.0),
+    );
+    draw_text(
+        &format!("Rung: {:.0}% | VFX: {:.0}%", settings.screen_shake_intensity * 100.0, settings.particle_density * 100.0),
+        settings_btn_x + 14.0,
+        60.0,
+        13.0,
+        Color::new(0.75, 0.88, 1.0, 1.0),
+    );
+
+    let cmd_w = 275.0;
+    let rx = settings_btn_x - cmd_w - 10.0;
+    draw_rectangle(rx, 20.0, cmd_w, 50.0, Color::new(0.05, 0.07, 0.12, 0.85));
+    draw_rectangle_lines(rx, 20.0, cmd_w, 50.0, 1.0, Color::new(1.0, 0.8, 0.0, 0.4));
+    draw_text("[G] GOI HOM TIEP TE SUNG", rx + 12.0, 40.0, 13.0, Color::new(1.0, 0.85, 0.1, 1.0));
+    draw_text("[B] TRIEU HOI DAI BOSS PHAO DAI", rx + 12.0, 60.0, 13.0, Color::new(1.0, 0.3, 0.4, 1.0));
 
     // Boss HP Bar
     if let Some((boss_name, hp, max_hp, parts_left)) = active_boss {
@@ -242,4 +292,6 @@ pub fn draw_hud(
             Color::new(0.6, 0.7, 0.8, 1.0),
         );
     }
+
+    hover_settings && is_mouse_button_pressed(MouseButton::Left)
 }
