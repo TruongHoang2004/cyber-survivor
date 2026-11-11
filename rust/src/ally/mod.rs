@@ -260,3 +260,36 @@ impl AlliedBehavior for OrbitingCombatDrone {
         draw_triangle_lines(nose, wing_l, wing_r, 1.8, WHITE);
     }
 }
+
+// =========================================================
+// 5. ORBITING PLASMA SPHERE (Cầu Plasma Xoay Quanh Bảo Hộ)
+// =========================================================
+pub struct OrbitingPlasmaSphere {
+    pub orbit_angle: f32,
+    pub orbit_radius: f32,
+    pub orbit_speed: f32,
+    pub pulse_timer: f32,
+}
+
+impl AlliedBehavior for OrbitingPlasmaSphere {
+    fn update(&mut self, body: &mut AlliedBody, ctx: &mut CombatContext, dt: f32) {
+        self.orbit_angle += dt * self.orbit_speed;
+        body.pos = ctx.player_pos
+            + vec2(self.orbit_angle.cos(), self.orbit_angle.sin()) * self.orbit_radius;
+
+        self.pulse_timer += dt;
+        if self.pulse_timer >= 0.10 {
+            self.pulse_timer = 0.0;
+            // Xung kích plasma thiêu rụi quái vật tiếp xúc
+            ctx.trigger_explosion(body.pos, 38.0, 85.0);
+        }
+    }
+
+    fn draw_custom(&self, body: &AlliedBody, sp: Vec2) {
+        let t = get_time() as f32 * 6.0;
+        let pulse = (t.sin() * 0.2 + 1.0) * body.radius;
+        draw_circle(sp.x, sp.y, pulse * 1.7, Color::new(1.0, 0.3, 0.85, 0.28));
+        draw_circle(sp.x, sp.y, pulse * 1.15, Color::new(0.2, 0.9, 1.0, 0.75));
+        draw_circle(sp.x, sp.y, pulse * 0.6, WHITE);
+    }
+}

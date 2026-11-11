@@ -1,6 +1,7 @@
 use macroquad::prelude::*;
 use crate::core::context::CombatContext;
 use crate::core::events::{ShockwaveRingEvent, SupplyPodDropEvent};
+use crate::core::i18n::{draw_text, tr};
 use crate::core::props::WeaponRarity;
 use crate::core::types::PlayerBody;
 
@@ -179,9 +180,12 @@ impl BattlefieldStructure for RadarOutpostStructure {
                     }));
                     ctx.spawn_float_text(
                         body.pos - vec2(0.0, 36.0),
-                        "RADAR OUTPOST CAPTURED! SATELLITE ONLINE!",
+                        tr(
+                            "ĐÃ CHIẾM TRẠM RADAR! VỆ TINH TIẾP TẾ LÕI SÚNG!",
+                            "RADAR OUTPOST CAPTURED! SATELLITE ONLINE!",
+                        ),
                         Color::new(1.0, 0.85, 0.0, 1.0),
-                        22.0,
+                        21.0,
                     );
                 }
             }
@@ -219,7 +223,11 @@ impl BattlefieldStructure for RadarOutpostStructure {
 
         if !self.captured {
             draw_text(
-                &format!("GIU VUNG RADAR: {:.0}%", self.progress * 100.0),
+                &format!(
+                    "{}: {:.0}%",
+                    tr("GIỮ VÙNG RADAR", "CAPTURING RADAR"),
+                    self.progress * 100.0
+                ),
                 sp.x - 62.0,
                 sp.y + body.radius + 22.0,
                 14.0,

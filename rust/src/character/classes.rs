@@ -1,6 +1,7 @@
 use macroquad::prelude::*;
 use crate::character::traits::CharacterClass;
 use crate::core::context::CombatContext;
+use crate::core::i18n::tr;
 use crate::core::types::{PlayerBody, PlayerModifiers};
 use crate::skill::abilities::{default_skills, tech_engineer_skills, void_stalker_skills};
 use crate::skill::traits::SkillSlot;
@@ -26,7 +27,10 @@ impl CharacterClass for CyberMarine {
     }
 
     fn description(&self) -> &'static str {
-        "Chien binh can bang: Giap Nano phuc hoi nhanh, Khong kich & Tieu doi tiep vien."
+        tr(
+            "Chiến binh cân bằng: Giáp Nano phục hồi nhanh, Không kích & Tiểu đội tiếp viện.",
+            "Balanced soldier: Fast Nano Shield regen, Orbital Strike & Marine Squad.",
+        )
     }
 
     fn initial_body(&self, start_pos: Vec2) -> PlayerBody {
@@ -45,6 +49,7 @@ impl CharacterClass for CyberMarine {
             max_stamina: 100.0,
             is_dashing: false,
             dash_duration: 0.0,
+            invulnerable_timer: 0.0,
             bullet_time: false,
             active_overcharge: false,
             modifiers: PlayerModifiers::default(),
@@ -77,7 +82,10 @@ impl CharacterClass for VoidStalker {
     }
 
     fn description(&self) -> &'static str {
-        "Sat thu toc do cao (+25% DMG, Dich chuyen Phase Blink tao Ho Den & Bao Set Void)."
+        tr(
+            "Sát thủ tốc độ cao (+25% DMG, Dịch chuyển Phase Blink tạo Hố Đen & Bão Sét).",
+            "High-speed assassin (+25% DMG, Phase Blink spawns Black Hole & Storm).",
+        )
     }
 
     fn initial_body(&self, start_pos: Vec2) -> PlayerBody {
@@ -100,6 +108,7 @@ impl CharacterClass for VoidStalker {
             max_stamina: 130.0,
             is_dashing: false,
             dash_duration: 0.0,
+            invulnerable_timer: 0.0,
             bullet_time: false,
             active_overcharge: false,
             modifiers: mods,
@@ -132,7 +141,10 @@ impl CharacterClass for TechEngineer {
     }
 
     fn description(&self) -> &'static str {
-        "Ky su Co khi: Giap khien 100, goi 2 Dai Robot Titan Mech + 2 Tru Sung Ep Xung [E]."
+        tr(
+            "Kỹ sư Cơ khí: Giáp khiên 100, gọi 2 Đại Robot Titan Mech + 2 Trụ Súng [E].",
+            "Mecha Engineer: 100 Shield, deploys 2 Titan Mechs + 2 Sentry Turrets [E].",
+        )
     }
 
     fn initial_body(&self, start_pos: Vec2) -> PlayerBody {
@@ -154,6 +166,7 @@ impl CharacterClass for TechEngineer {
             max_stamina: 100.0,
             is_dashing: false,
             dash_duration: 0.0,
+            invulnerable_timer: 0.0,
             bullet_time: false,
             active_overcharge: false,
             modifiers: mods,

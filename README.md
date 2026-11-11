@@ -56,16 +56,31 @@ Toàn bộ các thực thể và sự kiện có tính chất tương đồng đ
 | :---: | :--- |
 | <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> | Di chuyển chiến thuật 8 hướng |
 | 🖱️ Chuột trái / phải | Bắn vũ khí 360° / Chém dao cận chiến đẩy lùi |
-| <kbd>1</kbd> – <kbd>7</kbd> | Chuyển đổi giữa 7 loại vũ khí đã mở khóa |
-| <kbd>F</kbd> | Nhặt súng rơi dưới đất (hoặc tự động nhặt khi lại gần) |
-| <kbd>R</kbd> | Active Reload (Bấm đúng vạch xanh nhận **+40% Overcharge DMG**) |
-| <kbd>SPACE</kbd> | Lướt chiến thuật (Dash I-frames + để lại mìn xung kích) |
+| <kbd>1</kbd> – <kbd>7</kbd> | Chuyển đổi giữa 7 loại vũ khí đã mở khóa (chế độ tự do) |
+| <kbd>F</kbd> | Nhặt lõi nâng cấp / vật phẩm rơi dưới đất |
+| <kbd>R</kbd> | Active Reload (Bấm đúng vạch nhận **+40% Overcharge DMG**) |
+| <kbd>SPACE</kbd> | Lướt chiến thuật (Dash I-frames + né đòn thoát hiểm) |
 | <kbd>SHIFT</kbd> | Bullet Time (Làm chậm thời gian chiến trường) |
 | <kbd>Q</kbd> | **Tactical Airstrike**: Rải thảm bom liên hoàn + Tia Laser Quỹ Đạo |
-| <kbd>E</kbd> | **Reinforcements Drop**: Gọi Lính Thủy Quân + Robot Hạng Nặng + Drone + Khoang Tiếp Tế |
-| <kbd>G</kbd> | Gọi ngay một Khoang Tiếp Tế Súng (`Orbital Supply Pod`) tại vị trí chuột |
-| <kbd>B</kbd> | Triệu hồi ngay Đại Boss Pháo Đài (`Colossal Behemoth Boss`) |
+| <kbd>E</kbd> | **Reinforcements Drop**: Gọi Lính Thủy Quân + Robot Hạng Nặng + Drone |
 | <kbd>ESC</kbd> / <kbd>P</kbd> / <kbd>O</kbd> | Tạm dừng trận đấu & Mở Bảng Tuỳ Chỉnh Cài Đặt (`Settings`) |
+
+---
+
+## 🌟 Tính năng Nâng cấp Mới (V1.0 - Ultimate Edition)
+
+- 🌐 **Hỗ trợ Song Ngữ Hoàn Chỉnh (Bilingual):**
+  - Chuyển đổi tức thì giữa **Tiếng Việt có dấu** và **English** ngay trong menu cài đặt.
+- 🌳 **8 Hệ Cây Kỹ Năng Chuyên Sâu (8 Skill Trees - 32 Nodes):**
+  - Trọng Pháo (Heavy Caliber), Liên Thanh (Rapid Fire), Tiếp Vận (Fast Reload), Nguyên Tố (Elemental), Cơ Động (Phantom Mobility), Công Nghệ (Cyber Aegis), Từ Trường (Magnetism), và **Đa Hướng (Omni-Fire)**.
+- ⚡ **16 Bộ Kỹ Năng Tối Thượng (16 Ultimate Synergy Sets):**
+  - Thần Pháo Vô Tận, Siêu Bão Nguyên Tố, Thời Không Quân Đoàn, Pháo Đài Địa Ngục, Tia Chớp Vĩnh Cửu, Bão Đạn Vô Cực, Pháo Đài Thiết Giáp, Xạ Thủ Bóng Ma, Lò Phản Ứng Siêu Nạp, Kho Vũ Khí Tự Hành, Bước Nhảy Lượng Tử, Đột Kích Xung Kích, Siêu Tân Tinh Quỹ Đạo, Ma Trận Hủy Diệt Toàn Diện, Hố Đen Thời Không, và Thiên Phạt Sấm Truyền.
+- 🔫 **Tiến hóa Vũ Khí 6 Dạng (Level 1 $\rightarrow$ 500 Max):**
+  - Cứ mỗi 100 cấp độ (Lv.100, Lv.200, Lv.300, Lv.400, Lv.500) mở khóa hình thái tiến hóa mới với ngoại hình và đạn tối thượng.
+- 🛡️ **Khiên Bất Tử 2.5s & Sóng Xung Kích Bảo Vệ:**
+  - Không bao giờ bị kẹt thịt hay đơ di chuyển sau khi nâng cấp; tự do chạy nhảy bắn súng 100% tốc độ.
+- 💥 **Tự động cộng Omni-Stats khi đã cày xong hết buff:**
+  - Lên cấp tự động tăng toàn bộ chỉ số mà không ngắt quãng trải nghiệm chơi.
 
 ---
 

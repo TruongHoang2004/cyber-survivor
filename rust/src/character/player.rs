@@ -54,6 +54,16 @@ impl Player {
         self.fire_timer = 0.0;
     }
 
+    /// Khóa cố định 1 loại vũ khí duy nhất được chọn cho toàn bộ trận đấu
+    pub fn lock_single_weapon(&mut self, weapon_id: usize) {
+        let idx = weapon_id.min(self.weapons.len().saturating_sub(1));
+        for (i, w) in self.weapons.iter_mut().enumerate() {
+            w.stats.unlocked = i == idx;
+        }
+        self.current_weapon_idx = idx;
+        self.reload_state.is_reloading = false;
+    }
+
     pub fn current_weapon(&self) -> &Weapon {
         &self.weapons[self.current_weapon_idx]
     }
@@ -76,7 +86,7 @@ impl Player {
     }
 
     pub fn take_damage(&mut self, mut amount: f32) -> f32 {
-        if self.body.is_dashing {
+        if self.body.is_dashing || self.body.invulnerable_timer > 0.0 {
             return 0.0;
         }
         self.body.shield_regen_timer = 0.0;

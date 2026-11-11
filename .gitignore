@@ -5,3 +5,7 @@
 target/
 rust/target/
 *.cfg
+release_assets/
+*.zip
+dist-web/
+dist-macos/

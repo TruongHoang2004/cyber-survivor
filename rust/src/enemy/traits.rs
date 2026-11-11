@@ -48,6 +48,10 @@ pub struct EnemyBody {
 pub trait EnemyBehavior: Send + Sync {
     fn update(&mut self, body: &mut EnemyBody, ctx: &mut CombatContext, dt: f32);
 
+    fn modify_incoming_damage(&self, _body: &EnemyBody, _hit_pos: Vec2, raw_dmg: f32) -> f32 {
+        raw_dmg
+    }
+
     fn on_damaged(&mut self, _body: &mut EnemyBody, _dmg: f32, _ctx: &mut CombatContext) {}
 
     fn on_death(&mut self, _body: &EnemyBody, _ctx: &mut CombatContext) {}
@@ -124,7 +128,8 @@ impl EnemyEntity {
             .parts
             .iter()
             .any(|p| p.behavior.is_shield_generator());
-        let actual_dmg = if has_shield_gen { dmg * 0.35 } else { dmg };
+        let mut actual_dmg = if has_shield_gen { dmg * 0.35 } else { dmg };
+        actual_dmg = self.behavior.modify_incoming_damage(&self.body, hit_pos, actual_dmg);
 
         self.body.hp -= actual_dmg;
         self.body.hit_flash = 0.07;

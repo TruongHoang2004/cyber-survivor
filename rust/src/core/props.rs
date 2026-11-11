@@ -1,22 +1,44 @@
 use macroquad::prelude::*;
-use crate::weapon::arsenal::weapon_name_by_id;
+use crate::core::i18n::{draw_text, tr};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum WeaponRarity {
-    Common,
-    Rare,
-    Epic,
-    Legendary,
+    Common,    // Dạng 1 (Lv 1 - 99)
+    Rare,      // Dạng 2 (Lv 100 - 199)
+    Epic,      // Dạng 3 (Lv 200 - 299)
+    Legendary, // Dạng 4 (Lv 300 - 399)
+    Mythic,    // Dạng 5 (Lv 400 - 499)
+    Ultimate,  // Dạng 6 (Lv 500 MAX - Tối Thượng)
 }
 
 impl WeaponRarity {
+    pub fn from_level(level: u32) -> Self {
+        if level >= 500 {
+            WeaponRarity::Ultimate
+        } else if level >= 400 {
+            WeaponRarity::Mythic
+        } else if level >= 300 {
+            WeaponRarity::Legendary
+        } else if level >= 200 {
+            WeaponRarity::Epic
+        } else if level >= 100 {
+            WeaponRarity::Rare
+        } else {
+            WeaponRarity::Common
+        }
+    }
+
     pub fn random() -> Self {
         let r = rand::gen_range(0.0, 1.0);
-        if r < 0.14 {
-            WeaponRarity::Legendary
+        if r < 0.05 {
+            WeaponRarity::Ultimate
+        } else if r < 0.16 {
+            WeaponRarity::Mythic
         } else if r < 0.38 {
+            WeaponRarity::Legendary
+        } else if r < 0.68 {
             WeaponRarity::Epic
-        } else if r < 0.72 {
+        } else if r < 0.86 {
             WeaponRarity::Rare
         } else {
             WeaponRarity::Common
@@ -26,31 +48,50 @@ impl WeaponRarity {
     pub fn color(&self) -> Color {
         match self {
             WeaponRarity::Common => Color::new(0.75, 0.85, 0.95, 1.0),
-            WeaponRarity::Rare => Color::new(0.0, 0.85, 1.0, 1.0),
-            WeaponRarity::Epic => Color::new(0.75, 0.25, 1.0, 1.0),
+            WeaponRarity::Rare => Color::new(0.0, 0.88, 1.0, 1.0),
+            WeaponRarity::Epic => Color::new(0.78, 0.28, 1.0, 1.0),
             WeaponRarity::Legendary => Color::new(1.0, 0.82, 0.0, 1.0),
+            WeaponRarity::Mythic => Color::new(1.0, 0.22, 0.35, 1.0),
+            WeaponRarity::Ultimate => Color::new(0.2, 1.0, 0.85, 1.0),
         }
     }
 
     pub fn label(&self) -> &'static str {
         match self {
-            WeaponRarity::Common => "COMMON",
-            WeaponRarity::Rare => "RARE",
-            WeaponRarity::Epic => "EPIC",
-            WeaponRarity::Legendary => "LEGENDARY",
+            WeaponRarity::Common => tr("DẠNG 1 [CƠ BẢN]", "FORM 1 [BASE]"),
+            WeaponRarity::Rare => tr("DẠNG 2 [CẢI TIẾN]", "FORM 2 [ENHANCED]"),
+            WeaponRarity::Epic => tr("DẠNG 3 [CƯỜNG HÓA]", "FORM 3 [OVERCHARGED]"),
+            WeaponRarity::Legendary => tr("DẠNG 4 [SIÊU CẤP]", "FORM 4 [HYPER]"),
+            WeaponRarity::Mythic => tr("DẠNG 5 [THẦN THOẠI]", "FORM 5 [MYTHIC]"),
+            WeaponRarity::Ultimate => tr("DẠNG 6 [TỐI THƯỢNG MAX]", "FORM 6 [ULTIMATE MAX]"),
         }
     }
 
     pub fn damage_bonus(&self) -> f32 {
         match self {
             WeaponRarity::Common => 1.0,
-            WeaponRarity::Rare => 1.25,
-            WeaponRarity::Epic => 1.55,
-            WeaponRarity::Legendary => 2.0,
+            WeaponRarity::Rare => 1.35,
+            WeaponRarity::Epic => 1.75,
+            WeaponRarity::Legendary => 2.30,
+            WeaponRarity::Mythic => 3.10,
+            WeaponRarity::Ultimate => 4.50,
+        }
+    }
+
+    /// Số cấp độ vũ khí cộng thêm khi nhặt Đồ Nâng Cấp Súng
+    pub fn upgrade_levels(&self) -> u32 {
+        match self {
+            WeaponRarity::Common => 3,
+            WeaponRarity::Rare => 8,
+            WeaponRarity::Epic => 18,
+            WeaponRarity::Legendary => 35,
+            WeaponRarity::Mythic => 60,
+            WeaponRarity::Ultimate => 100,
         }
     }
 }
 
+/// Đồ Nâng Cấp Súng (Weapon Upgrade Module) rơi ra trong trận để tích đủ 100 Lv tiến hóa thành súng [EVO]
 pub struct WeaponDrop {
     pub pos: Vec2,
     pub weapon_id: usize,
@@ -72,18 +113,21 @@ impl WeaponDrop {
         let sp = self.pos + cam_offset;
         let col = self.rarity.color();
         let bob = (self.bob_phase.sin()) * 4.0;
+        let lv_gain = self.rarity.upgrade_levels();
 
-        // Cột sáng Hologram chiếu thẳng lên từ vũ khí rơi dưới đất
+        // Cột sáng Hologram chiếu thẳng lên từ Đồ Nâng Cấp Súng
         let beam_h = match self.rarity {
             WeaponRarity::Common => 45.0,
             WeaponRarity::Rare => 65.0,
             WeaponRarity::Epic => 90.0,
             WeaponRarity::Legendary => 125.0,
+            WeaponRarity::Mythic => 165.0,
+            WeaponRarity::Ultimate => 230.0,
         };
         draw_rectangle(
-            sp.x - 10.0,
+            sp.x - 9.0,
             sp.y - beam_h,
-            20.0,
+            18.0,
             beam_h,
             Color::new(col.r, col.g, col.b, 0.16),
         );
@@ -96,38 +140,42 @@ impl WeaponDrop {
             Color::new(col.r, col.g, col.b, 0.75),
         );
 
-        // Khung bệ hòm tiếp tế lục giác dưới đất (không dùng hình tròn)
-        draw_poly(sp.x, sp.y, 6, 20.0, 0.0, Color::new(0.08, 0.12, 0.18, 0.9));
-        draw_poly_lines(sp.x, sp.y, 6, 20.0, 0.0, 2.2, col);
+        // Bệ Module Công Nghệ Lục Giác dưới đất
+        draw_poly(sp.x, sp.y, 6, 18.0, 0.0, Color::new(0.07, 0.11, 0.18, 0.92));
+        draw_poly_lines(sp.x, sp.y, 6, 18.0, 0.0, 2.2, col);
 
-        // Vẽ hình dáng khẩu súng chi tiết (báng súng, thân súng, băng đạn, nòng súng)
-        let gy = sp.y - 6.0 + bob;
-        // Báng súng
-        draw_rectangle(sp.x - 16.0, gy - 2.0, 7.0, 6.0, Color::new(0.22, 0.26, 0.34, 1.0));
-        // Thân súng chính
-        draw_rectangle(sp.x - 10.0, gy - 5.0, 20.0, 8.0, Color::new(0.15, 0.2, 0.28, 1.0));
-        draw_rectangle_lines(sp.x - 10.0, gy - 5.0, 20.0, 8.0, 1.5, col);
-        // Nòng súng & băng đạn
-        draw_rectangle(sp.x + 10.0, gy - 3.5, 10.0, 4.5, col);
-        draw_rectangle(sp.x - 2.0, gy + 3.0, 5.0, 6.0, col);
-        draw_rectangle(sp.x - 11.0, gy + 3.0, 4.5, 6.0, Color::new(0.3, 0.35, 0.42, 1.0));
-
-        // Hiển thị tên súng & hướng dẫn nhặt khi đứng gần
-        let dist = (self.pos - player_pos).length();
-        let w_name = weapon_name_by_id(self.weapon_id);
-        draw_text(
-            &format!("[{}] {}", self.rarity.label(), w_name),
-            sp.x - 48.0,
-            sp.y - 26.0 + bob,
-            15.0,
+        // Vẽ Hộp Linh Kiện Nâng Cấp Vũ Khí (Weapon Upgrade Core + Mũi tên thăng cấp)
+        let gy = sp.y - 5.0 + bob;
+        draw_poly(sp.x, gy, 8, 12.5, self.bob_phase * 25.0, Color::new(0.12, 0.18, 0.28, 0.96));
+        draw_poly_lines(sp.x, gy, 8, 12.5, self.bob_phase * 25.0, 2.0, col);
+        // Mũi tên thăng cấp kép hướng lên [▲]
+        draw_triangle(
+            vec2(sp.x, gy - 8.0),
+            vec2(sp.x - 6.5, gy + 1.0),
+            vec2(sp.x + 6.5, gy + 1.0),
             col,
         );
+        draw_triangle(
+            vec2(sp.x, gy - 2.0),
+            vec2(sp.x - 5.5, gy + 6.0),
+            vec2(sp.x + 5.5, gy + 6.0),
+            WHITE,
+        );
+
+        // Hiển thị nhãn Đồ Nâng Cấp Súng
+        let dist = (self.pos - player_pos).length();
+        let label = format!(
+            "{} (+{} LV)",
+            tr("LÕI NÂNG CẤP SÚNG", "WEAPON UPGRADE"),
+            lv_gain
+        );
+        draw_text(&label, sp.x - 68.0, sp.y - 24.0 + bob, 14.0, col);
         if dist < 95.0 {
             draw_text(
-                "CHAM VAO HOAC BAM [F] DE NHAT!",
-                sp.x - 75.0,
+                tr("CHẠM VÀO HOẶC BẤM [F] ĐỂ NÂNG CẤP SÚNG!", "TOUCH OR PRESS [F] TO UPGRADE WEAPON!"),
+                sp.x - 110.0,
                 sp.y + 30.0,
-                14.0,
+                13.0,
                 WHITE,
             );
         }
